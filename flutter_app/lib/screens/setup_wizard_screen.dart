@@ -153,13 +153,14 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   }
 
   Future<void> _goToDashboard(BuildContext context) async {
+    final navigator = Navigator.of(context);
     final prefs = PreferencesService();
     await prefs.init();
     prefs.setupComplete = true;
     prefs.isFirstRun = false;
 
     if (mounted) {
-      Navigator.of(context).pushReplacement(
+      navigator.pushReplacement(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );
     }
