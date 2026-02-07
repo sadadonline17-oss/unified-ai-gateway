@@ -29,6 +29,8 @@ class BootstrapManager(
         // as libtalloc.so (jniLibs naming convention). Create a copy with the
         // correct SONAME so the dynamic linker finds it.
         setupLibtalloc()
+        // Create fake /proc and /sys files for proot bind mounts
+        setupFakeSysdata()
     }
 
     private fun setupLibtalloc() {
@@ -290,14 +292,73 @@ os.networkInterfaces = function() {
         configDir.mkdirs()
 
         File("$configDir/resolv.conf").writeText("nameserver 8.8.8.8\nnameserver 8.8.4.4\n")
+    }
 
-        // libgcrypt reads /proc/sys/crypto/fips_enabled on startup.
-        // On Android this path is missing or unreadable through proot,
-        // causing apt's HTTP method to abort (signal 6).
-        // Provide a fake file returning "0" (FIPS disabled).
-        val procFakeDir = File("$configDir/proc_fakes")
-        procFakeDir.mkdirs()
-        File(procFakeDir, "fips_enabled").writeText("0\n")
+    /**
+     * Create fake /proc and /sys files that are bind-mounted into proot.
+     * Android restricts access to many /proc entries; proot-distro works
+     * around this by providing static fake data. We replicate that approach.
+     */
+    fun setupFakeSysdata() {
+        val procDir = File("$configDir/proc_fakes")
+        val sysDir = File("$configDir/sys_fakes")
+        procDir.mkdirs()
+        sysDir.mkdirs()
+
+        // /proc/loadavg
+        File(procDir, "loadavg").writeText("0.12 0.07 0.02 2/165 765\n")
+
+        // /proc/stat — minimal but valid
+        File(procDir, "stat").writeText(
+            "cpu  1957 0 2877 93280 262 342 254 87 0 0\n" +
+            "cpu0 31 0 226 12027 82 10 4 9 0 0\n" +
+            "intr 63361 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n" +
+            "ctxt 38014093\n" +
+            "btime 1694292441\n" +
+            "processes 26442\n" +
+            "procs_running 1\n" +
+            "procs_blocked 0\n" +
+            "softirq 75663 0 5903 6 25375 10774 0 243 11685 0 21677\n"
+        )
+
+        // /proc/uptime
+        File(procDir, "uptime").writeText("124.08 932.80\n")
+
+        // /proc/version — fake kernel info matching proot-distro
+        File(procDir, "version").writeText(
+            "Linux version 6.2.1-PRoot-Distro (proot@termux) " +
+            "(gcc (GCC) 13.3.0, GNU ld (GNU Binutils) 2.42) " +
+            "#1 SMP PREEMPT_DYNAMIC Sat, 01 Jan 2000 00:00:00 +0000\n"
+        )
+
+        // /proc/vmstat — minimal
+        File(procDir, "vmstat").writeText(
+            "nr_free_pages 1743136\n" +
+            "nr_zone_inactive_anon 179281\n" +
+            "nr_zone_active_anon 7183\n" +
+            "nr_zone_inactive_file 22858\n" +
+            "nr_zone_active_file 51328\n" +
+            "nr_zone_unevictable 642\n" +
+            "nr_zone_write_pending 0\n" +
+            "nr_mlock 0\n" +
+            "pgpgin 198292\n" +
+            "pgpgout bandoned 0\n" +
+            "pswpin 0\n" +
+            "pswpout 0\n"
+        )
+
+        // /proc/sys/kernel/cap_last_cap
+        File(procDir, "cap_last_cap").writeText("40\n")
+
+        // /proc/sys/fs/inotify/max_user_watches
+        File(procDir, "max_user_watches").writeText("4096\n")
+
+        // /proc/sys/crypto/fips_enabled — libgcrypt reads this on startup;
+        // missing/unreadable on Android causes apt HTTP method to SIGABRT
+        File(procDir, "fips_enabled").writeText("0\n")
+
+        // Empty file for /sys/fs/selinux bind
+        File(sysDir, "empty").writeText("")
     }
 
     private fun checkNodeInProot(): Boolean {

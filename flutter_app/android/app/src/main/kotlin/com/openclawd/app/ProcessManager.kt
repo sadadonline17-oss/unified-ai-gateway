@@ -20,17 +20,33 @@ class ProcessManager(
         val prootPath = getProotPath()
         val nodeOptions = "--require /root/.openclawd/bionic-bypass.js"
 
-        val procFakesDir = "$configDir/proc_fakes"
+        val procFakes = "$configDir/proc_fakes"
+        val sysFakes = "$configDir/sys_fakes"
 
+        // Bind mounts match proot-distro's setup_fake_sysdata approach:
+        // Android restricts many /proc and /sys entries, so we provide
+        // static fake files to prevent crashes (e.g. libgcrypt SIGABRT).
         return listOf(
             prootPath,
             "-0",
             "--link2symlink",
+            "--kernel-release=6.2.1-PRoot-Distro",
             "-r", rootfsDir,
             "-b", "/dev",
             "-b", "/proc",
             "-b", "/sys",
-            "-b", "$procFakesDir/fips_enabled:/proc/sys/crypto/fips_enabled",
+            // Fake proc entries (from proot-distro)
+            "-b", "$procFakes/loadavg:/proc/loadavg",
+            "-b", "$procFakes/stat:/proc/stat",
+            "-b", "$procFakes/uptime:/proc/uptime",
+            "-b", "$procFakes/version:/proc/version",
+            "-b", "$procFakes/vmstat:/proc/vmstat",
+            "-b", "$procFakes/cap_last_cap:/proc/sys/kernel/cap_last_cap",
+            "-b", "$procFakes/max_user_watches:/proc/sys/fs/inotify/max_user_watches",
+            "-b", "$procFakes/fips_enabled:/proc/sys/crypto/fips_enabled",
+            // Fake sys entries
+            "-b", "$sysFakes/empty:/sys/fs/selinux",
+            // App binds
             "-b", "$configDir/resolv.conf:/etc/resolv.conf",
             "-b", "$homeDir:/root/home",
             "-w", "/root",

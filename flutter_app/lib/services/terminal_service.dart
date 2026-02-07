@@ -37,13 +37,29 @@ class TerminalService {
   }
 
   static List<String> buildProotArgs(Map<String, String> config) {
+    final procFakes = '${config['configDir']}/proc_fakes';
+    final sysFakes = '${config['configDir']}/sys_fakes';
+
     return [
       '-0',
       '--link2symlink',
+      '--kernel-release=6.2.1-PRoot-Distro',
       '-r', config['rootfsDir']!,
       '-b', '/dev',
       '-b', '/proc',
       '-b', '/sys',
+      // Fake proc entries (matching proot-distro)
+      '-b', '$procFakes/loadavg:/proc/loadavg',
+      '-b', '$procFakes/stat:/proc/stat',
+      '-b', '$procFakes/uptime:/proc/uptime',
+      '-b', '$procFakes/version:/proc/version',
+      '-b', '$procFakes/vmstat:/proc/vmstat',
+      '-b', '$procFakes/cap_last_cap:/proc/sys/kernel/cap_last_cap',
+      '-b', '$procFakes/max_user_watches:/proc/sys/fs/inotify/max_user_watches',
+      '-b', '$procFakes/fips_enabled:/proc/sys/crypto/fips_enabled',
+      // Fake sys entries
+      '-b', '$sysFakes/empty:/sys/fs/selinux',
+      // App binds
       '-b', '${config['configDir']}/resolv.conf:/etc/resolv.conf',
       '-b', '${config['homeDir']}:/root/home',
       '-w', '/root',
