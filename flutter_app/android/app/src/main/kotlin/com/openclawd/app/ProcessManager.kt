@@ -85,14 +85,22 @@ class ProcessManager(
 
         val process = pb.start()
         val output = StringBuilder()
+        val errorLines = StringBuilder() // Only error-relevant lines
         val reader = BufferedReader(InputStreamReader(process.inputStream))
 
         var line: String?
         while (reader.readLine().also { line = it } != null) {
             val l = line ?: continue
             // Filter proot warnings
-            if (!l.contains("proot warning") && !l.contains("can't sanitize")) {
-                output.appendLine(l)
+            if (l.contains("proot warning") || l.contains("can't sanitize")) {
+                continue
+            }
+            output.appendLine(l)
+            // Collect error-relevant lines (skip apt download progress)
+            if (!l.startsWith("Get:") && !l.startsWith("Fetched ") &&
+                !l.startsWith("Hit:") && !l.startsWith("Ign:") &&
+                !l.contains(" kB]") && !l.contains(" MB]")) {
+                errorLines.appendLine(l)
             }
         }
 
@@ -104,8 +112,12 @@ class ProcessManager(
 
         val exitCode = process.exitValue()
         if (exitCode != 0) {
+            // Use error-relevant lines for the message (no download noise)
+            val errorOutput = errorLines.toString().takeLast(3000).ifEmpty {
+                output.toString().takeLast(3000)
+            }
             throw RuntimeException(
-                "Command failed (exit code $exitCode): ${output.toString().takeLast(2000)}"
+                "Command failed (exit code $exitCode): $errorOutput"
             )
         }
 

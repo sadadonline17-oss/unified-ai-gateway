@@ -128,10 +128,10 @@ class BootstrapService {
         progress: 0.2,
         message: 'Installing base packages...',
       ));
-      // Now that proot has --sysvipc and proper binds, dpkg should work.
-      // Don't mask errors with || true — let real failures propagate.
+      // Use -q to suppress download progress so dpkg errors are visible
+      // in the error output (last 2000 chars).
       await NativeBridge.runInProot(
-        'apt-get install -y --no-install-recommends ca-certificates curl gnupg',
+        'apt-get -q install -y --no-install-recommends ca-certificates curl gnupg',
       );
 
       // Verify curl is available before proceeding
