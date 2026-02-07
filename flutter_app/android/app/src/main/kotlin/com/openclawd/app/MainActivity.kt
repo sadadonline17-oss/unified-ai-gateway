@@ -58,10 +58,11 @@ class MainActivity : FlutterActivity() {
                 }
                 "runInProot" -> {
                     val command = call.argument<String>("command")
+                    val timeout = call.argument<Int>("timeout")?.toLong() ?: 900L
                     if (command != null) {
                         Thread {
                             try {
-                                val output = processManager.runInProotSync(command)
+                                val output = processManager.runInProotSync(command, timeout)
                                 runOnUiThread { result.success(output) }
                             } catch (e: Exception) {
                                 runOnUiThread { result.error("PROOT_ERROR", e.message, null) }

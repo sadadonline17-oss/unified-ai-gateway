@@ -36,12 +36,17 @@ class ProcessManager(
         )
     }
 
-    fun runInProotSync(command: String, timeoutSeconds: Long = 60): String {
+    private fun prootEnv(): Map<String, String> = mapOf(
+        "PROOT_TMP_DIR" to tmpDir,
+        "PROOT_NO_SECCOMP" to "1",
+        "PROOT_LOADER" to "$nativeLibDir/libprootloader.so",
+        "PROOT_LOADER_32" to "$nativeLibDir/libprootloader32.so",
+        "HOME" to "/root"
+    )
+
+    fun runInProotSync(command: String, timeoutSeconds: Long = 900): String {
         val cmd = buildProotCommand(command)
-        val env = mapOf(
-            "PROOT_TMP_DIR" to tmpDir,
-            "HOME" to "/root"
-        )
+        val env = prootEnv()
 
         val pb = ProcessBuilder(cmd)
         pb.environment().putAll(env)
@@ -71,10 +76,7 @@ class ProcessManager(
 
     fun startProotProcess(command: String): Process {
         val cmd = buildProotCommand(command)
-        val env = mapOf(
-            "PROOT_TMP_DIR" to tmpDir,
-            "HOME" to "/root"
-        )
+        val env = prootEnv()
 
         val pb = ProcessBuilder(cmd)
         pb.environment().putAll(env)

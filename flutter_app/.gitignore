@@ -14,7 +14,7 @@ android/key.properties
 *.keystore
 
 # PRoot binaries (fetched by script, not committed)
-android/app/jniLibs/*/libproot.so
+android/app/src/main/jniLibs/
 
 # IDE
 .idea/

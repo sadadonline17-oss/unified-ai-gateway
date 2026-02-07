@@ -69,6 +69,8 @@ class BootstrapManager(
         )
         pb.environment()["PROOT_TMP_DIR"] = tmpDir
         pb.environment()["PROOT_NO_SECCOMP"] = "1"
+        pb.environment()["PROOT_LOADER"] = "$nativeLibDir/libprootloader.so"
+        pb.environment()["PROOT_LOADER_32"] = "$nativeLibDir/libprootloader32.so"
         pb.redirectErrorStream(true)
 
         val process = pb.start()
