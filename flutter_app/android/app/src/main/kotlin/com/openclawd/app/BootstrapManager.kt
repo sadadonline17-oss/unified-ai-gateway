@@ -22,7 +22,7 @@ class BootstrapManager(
     private val libDir get() = "$filesDir/lib"
 
     fun setupDirectories() {
-        listOf(rootfsDir, tmpDir, homeDir, configDir, "$homeDir/.openclawd", libDir, "$rootfsDir/.l2s").forEach {
+        listOf(rootfsDir, tmpDir, homeDir, configDir, "$homeDir/.openclawd", libDir).forEach {
             File(it).mkdirs()
         }
         // Termux's proot links against libtalloc.so.2 but Android extracts it

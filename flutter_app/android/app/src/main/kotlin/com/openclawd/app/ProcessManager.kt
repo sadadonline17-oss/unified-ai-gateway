@@ -72,7 +72,11 @@ class ProcessManager(
     private fun prootEnv(): Map<String, String> = mapOf(
         "PROOT_TMP_DIR" to tmpDir,
         "PROOT_NO_SECCOMP" to "1",
-        "PROOT_L2S_DIR" to "$rootfsDir/.l2s",
+        // NOTE: Do NOT set PROOT_L2S_DIR here. proot-distro sets it because
+        // it extracts via `proot --link2symlink tar`, creating L2S metadata
+        // in that dir. We extract with Java, so no L2S metadata exists.
+        // Setting it makes proot look for metadata that isn't there, breaking
+        // file resolution (ENOSYS on open).
         "PROOT_LOADER" to "$nativeLibDir/libprootloader.so",
         "PROOT_LOADER_32" to "$nativeLibDir/libprootloader32.so",
         "LD_LIBRARY_PATH" to "$libDir:$nativeLibDir",
