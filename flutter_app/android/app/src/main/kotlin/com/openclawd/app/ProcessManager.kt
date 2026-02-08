@@ -63,7 +63,7 @@ class ProcessManager(
             "-b", "$homeDir:/root/home",
             "-w", "/root",
             "/bin/bash", "-c",
-            "export NODE_OPTIONS=\"$nodeOptions\" && export HOME=/root && export DEBIAN_FRONTEND=noninteractive && export TMPDIR=/tmp && export LANG=C.UTF-8 && export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && $command"
+            "export NODE_OPTIONS=\"$nodeOptions\" && export HOME=/root && export DEBIAN_FRONTEND=noninteractive && export TMPDIR=/tmp && export LANG=C.UTF-8 && export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin && export CHOKIDAR_USEPOLLING=true && export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt && export UV_USE_IO_URING=0 && $command"
         )
     }
 

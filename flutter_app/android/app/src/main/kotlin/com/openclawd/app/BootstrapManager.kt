@@ -436,6 +436,24 @@ class BootstrapManager(
             "$rootfsDir/root/.config",
             "$rootfsDir/usr/local/lib/node_modules",
             "$rootfsDir/usr/local/bin",
+            // OpenClaw runtime directories (can't mkdir at runtime)
+            "$rootfsDir/root/.openclawd",
+            "$rootfsDir/root/.openclawd/data",
+            "$rootfsDir/root/.openclawd/memory",
+            "$rootfsDir/root/.openclawd/skills",
+            "$rootfsDir/root/.openclawd/config",
+            "$rootfsDir/root/.openclawd/extensions",
+            "$rootfsDir/root/.openclawd/logs",
+            "$rootfsDir/root/.config/openclaw",
+            "$rootfsDir/root/.local/share",
+            "$rootfsDir/root/.cache",
+            "$rootfsDir/root/.cache/openclaw",
+            "$rootfsDir/root/.cache/node",
+            // General runtime directories
+            "$rootfsDir/var/tmp",
+            "$rootfsDir/run",
+            "$rootfsDir/run/lock",
+            "$rootfsDir/dev/shm",
         ).forEach { File(it).mkdirs() }
 
         // 4. Ensure /etc/machine-id exists (dpkg triggers and systemd utils need it)
@@ -637,122 +655,13 @@ process.cwd = function() {
         // 2. Node wrapper — patches broken syscalls then runs the target script.
         //    Used during bootstrap (where NODE_OPTIONS must be unset).
         //    Usage: node /root/.openclawd/node-wrapper.js <script> [args...]
-        //    Patches: process.cwd (getcwd ENOSYS), fs.mkdir* (mkdirat ENOSYS)
         val wrapperContent = """
 // OpenClawd Node Wrapper - Auto-generated
 // Patches broken proot syscalls, then loads the target script.
+// Used for bootstrap-time npm operations.
 
-// 1. Fix process.cwd() — getcwd() returns ENOSYS in proot
-const _origCwd = process.cwd;
-process.cwd = function() {
-  try { return _origCwd.call(process); }
-  catch(e) { return process.env.HOME || '/root'; }
-};
-
-// 2. Fix fs.mkdir — mkdirat() returns ENOSYS/ENOENT in proot.
-//    Patch to create each path component individually and tolerate errors.
-const _fs = require('fs');
-const _path = require('path');
-const _origMkdirSync = _fs.mkdirSync;
-_fs.mkdirSync = function(p, options) {
-  try {
-    return _origMkdirSync.call(_fs, p, options);
-  } catch(e) {
-    if (e.code === 'ENOSYS' || e.code === 'ENOENT') {
-      // Try creating each component one by one
-      const parts = _path.resolve(p).split(_path.sep).filter(Boolean);
-      let current = '';
-      for (const part of parts) {
-        current += _path.sep + part;
-        try { _origMkdirSync.call(_fs, current); }
-        catch(e2) { if (e2.code !== 'EEXIST' && e2.code !== 'EISDIR') {
-          // Last resort: try via shell (sync)
-          try { require('child_process').execFileSync('/bin/mkdir', ['-p', p], {stdio:'ignore'}); return; }
-          catch(e3) { /* give up on this component */ }
-        }}
-      }
-      return;
-    }
-    throw e;
-  }
-};
-const _origMkdir = _fs.mkdir;
-_fs.mkdir = function(p, options, cb) {
-  if (typeof options === 'function') { cb = options; options = undefined; }
-  try {
-    _fs.mkdirSync(p, options);
-    if (cb) cb(null);
-  } catch(e) {
-    if (cb) cb(e); else throw e;
-  }
-};
-// Also patch promises version
-const _fsp = _fs.promises;
-if (_fsp) {
-  const _origMkdirP = _fsp.mkdir;
-  _fsp.mkdir = async function(p, options) {
-    try { return await _origMkdirP.call(_fsp, p, options); }
-    catch(e) {
-      if (e.code === 'ENOSYS' || e.code === 'ENOENT') {
-        _fs.mkdirSync(p, options); return;
-      }
-      throw e;
-    }
-  };
-}
-
-// 3. Fix child_process.spawn — fork/posix_spawn returns ENOSYS in proot.
-//    npm spawns subprocesses for optional operations (audit, scripts).
-//    Patch to return a mock process that exits cleanly on ENOSYS.
-const _cp = require('child_process');
-const _EventEmitter = require('events');
-const _origSpawn = _cp.spawn;
-_cp.spawn = function(cmd, args, options) {
-  try {
-    const child = _origSpawn.call(_cp, cmd, args, options);
-    child.on('error', (err) => {
-      if (err.code === 'ENOSYS') {
-        // Suppress ENOSYS — treat as if the process exited normally
-        child.emit('close', 0);
-      }
-    });
-    return child;
-  } catch(e) {
-    if (e.code === 'ENOSYS') {
-      // Return a fake child process that immediately exits
-      const fake = new _EventEmitter();
-      fake.stdout = new _EventEmitter();
-      fake.stderr = new _EventEmitter();
-      fake.stdin = { write(){}, end(){}, on(){}, once(){} };
-      fake.pid = 0;
-      fake.kill = function(){};
-      fake.ref = function(){};
-      fake.unref = function(){};
-      process.nextTick(() => {
-        fake.stdout.emit('end');
-        fake.stderr.emit('end');
-        fake.emit('close', 0);
-      });
-      return fake;
-    }
-    throw e;
-  }
-};
-const _origSpawnSync = _cp.spawnSync;
-_cp.spawnSync = function(cmd, args, options) {
-  try {
-    const r = _origSpawnSync.call(_cp, cmd, args, options);
-    if (r.error && r.error.code === 'ENOSYS') {
-      return { status: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), pid: 0, output: [null, Buffer.alloc(0), Buffer.alloc(0)], error: null };
-    }
-    return r;
-  } catch(e) {
-    if (e.code === 'ENOSYS') {
-      return { status: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), pid: 0, output: [null, Buffer.alloc(0), Buffer.alloc(0)], error: null };
-    }
-    throw e;
-  }
-};
+// --- Load shared proot compatibility patches ---
+require('/root/.openclawd/proot-compat.js');
 
 // Load target script
 const script = process.argv[2];
@@ -766,39 +675,330 @@ if (script) {
 """.trimIndent()
         File(bypassDir, "node-wrapper.js").writeText(wrapperContent)
 
-        // 3. Bionic bypass — patches os.networkInterfaces for Android
-        val bypassContent = """
-// OpenClawd Bionic Bypass - Auto-generated
-// Load CWD fix first
-require('/root/.openclawd/cwd-fix.js');
+        // 3. Shared proot compatibility patches — used by both node-wrapper.js
+        //    (bootstrap) and bionic-bypass.js (runtime).
+        //    Patches: process.cwd, fs.mkdir, child_process.spawn, os.*, fs.rename,
+        //    fs.watch, fs.chmod/chown.
+        val prootCompatContent = """
+// OpenClawd Proot Compatibility Layer - Auto-generated
+// Patches all known broken syscalls in proot on Android 10+.
+// This file is require()'d by both node-wrapper.js and bionic-bypass.js.
 
-const os = require('os');
-const originalNetworkInterfaces = os.networkInterfaces;
+'use strict';
 
-os.networkInterfaces = function() {
+// ====================================================================
+// 1. process.cwd() — getcwd() returns ENOSYS in proot
+// ====================================================================
+const _origCwd = process.cwd;
+process.cwd = function() {
+  try { return _origCwd.call(process); }
+  catch(e) { return process.env.HOME || '/root'; }
+};
+
+// ====================================================================
+// 2. os module patches — various /proc reads fail in proot
+// ====================================================================
+const _os = require('os');
+
+// os.hostname() — may fail reading /proc/sys/kernel/hostname
+const _origHostname = _os.hostname;
+_os.hostname = function() {
+  try { return _origHostname.call(_os); }
+  catch(e) { return 'localhost'; }
+};
+
+// os.tmpdir() — ensure it returns /tmp
+const _origTmpdir = _os.tmpdir;
+_os.tmpdir = function() {
   try {
-    const interfaces = originalNetworkInterfaces.call(os);
-    if (interfaces && Object.keys(interfaces).length > 0) {
-      return interfaces;
-    }
-  } catch (e) {
-    // Bionic blocked the call, use fallback
-  }
+    const t = _origTmpdir.call(_os);
+    return t || '/tmp';
+  } catch(e) { return '/tmp'; }
+};
 
-  // Return mock loopback interface
+// os.homedir() — may fail with ENOSYS
+const _origHomedir = _os.homedir;
+_os.homedir = function() {
+  try { return _origHomedir.call(_os); }
+  catch(e) { return process.env.HOME || '/root'; }
+};
+
+// os.userInfo() — getpwuid may fail in proot
+const _origUserInfo = _os.userInfo;
+_os.userInfo = function(opts) {
+  try { return _origUserInfo.call(_os, opts); }
+  catch(e) {
+    return {
+      uid: 0, gid: 0,
+      username: 'root',
+      homedir: process.env.HOME || '/root',
+      shell: '/bin/bash'
+    };
+  }
+};
+
+// os.cpus() — reading /proc/cpuinfo may fail
+const _origCpus = _os.cpus;
+_os.cpus = function() {
+  try {
+    const cpus = _origCpus.call(_os);
+    if (cpus && cpus.length > 0) return cpus;
+  } catch(e) {}
+  return [{ model: 'ARM', speed: 2000, times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 } }];
+};
+
+// os.totalmem() / os.freemem() — reading /proc/meminfo may fail
+const _origTotalmem = _os.totalmem;
+_os.totalmem = function() {
+  try { return _origTotalmem.call(_os); }
+  catch(e) { return 4 * 1024 * 1024 * 1024; } // 4GB fallback
+};
+const _origFreemem = _os.freemem;
+_os.freemem = function() {
+  try { return _origFreemem.call(_os); }
+  catch(e) { return 2 * 1024 * 1024 * 1024; } // 2GB fallback
+};
+
+// os.networkInterfaces() — Android blocks getifaddrs()
+const _origNetIf = _os.networkInterfaces;
+_os.networkInterfaces = function() {
+  try {
+    const ifaces = _origNetIf.call(_os);
+    if (ifaces && Object.keys(ifaces).length > 0) return ifaces;
+  } catch(e) {}
   return {
-    lo: [
-      {
-        address: '127.0.0.1',
-        netmask: '255.0.0.0',
-        family: 'IPv4',
-        mac: '00:00:00:00:00:00',
-        internal: true,
-        cidr: '127.0.0.1/8'
-      }
-    ]
+    lo: [{
+      address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4',
+      mac: '00:00:00:00:00:00', internal: true, cidr: '127.0.0.1/8'
+    }]
   };
 };
+
+// ====================================================================
+// 3. fs.mkdir — mkdirat() returns ENOSYS in proot
+// ====================================================================
+const _fs = require('fs');
+const _path = require('path');
+const _origMkdirSync = _fs.mkdirSync;
+_fs.mkdirSync = function(p, options) {
+  try {
+    return _origMkdirSync.call(_fs, p, options);
+  } catch(e) {
+    if (e.code === 'ENOSYS' || (e.code === 'ENOENT' && options && options.recursive)) {
+      const parts = _path.resolve(String(p)).split(_path.sep).filter(Boolean);
+      let current = '';
+      for (const part of parts) {
+        current += _path.sep + part;
+        try { _origMkdirSync.call(_fs, current); }
+        catch(e2) { if (e2.code !== 'EEXIST' && e2.code !== 'EISDIR') { /* skip */ } }
+      }
+      return undefined;
+    }
+    throw e;
+  }
+};
+const _origMkdir = _fs.mkdir;
+_fs.mkdir = function(p, options, cb) {
+  if (typeof options === 'function') { cb = options; options = undefined; }
+  try { _fs.mkdirSync(p, options); if (cb) cb(null); }
+  catch(e) { if (cb) cb(e); else throw e; }
+};
+const _fsp = _fs.promises;
+if (_fsp) {
+  const _origMkdirP = _fsp.mkdir;
+  _fsp.mkdir = async function(p, options) {
+    try { return await _origMkdirP.call(_fsp, p, options); }
+    catch(e) {
+      if (e.code === 'ENOSYS' || (e.code === 'ENOENT' && options && options.recursive)) {
+        _fs.mkdirSync(p, options); return undefined;
+      }
+      throw e;
+    }
+  };
+}
+
+// ====================================================================
+// 4. fs.rename — renameat2() may ENOSYS in proot; fallback to copy+unlink
+// ====================================================================
+const _origRenameSync = _fs.renameSync;
+_fs.renameSync = function(oldPath, newPath) {
+  try { return _origRenameSync.call(_fs, oldPath, newPath); }
+  catch(e) {
+    if (e.code === 'ENOSYS' || e.code === 'EXDEV') {
+      _fs.copyFileSync(oldPath, newPath);
+      try { _fs.unlinkSync(oldPath); } catch(_) {}
+      return;
+    }
+    throw e;
+  }
+};
+const _origRename = _fs.rename;
+_fs.rename = function(oldPath, newPath, cb) {
+  _origRename.call(_fs, oldPath, newPath, function(err) {
+    if (err && (err.code === 'ENOSYS' || err.code === 'EXDEV')) {
+      try {
+        _fs.copyFileSync(oldPath, newPath);
+        try { _fs.unlinkSync(oldPath); } catch(_) {}
+        if (cb) cb(null);
+      } catch(e2) { if (cb) cb(e2); }
+    } else { if (cb) cb(err); }
+  });
+};
+if (_fsp) {
+  const _origRenameP = _fsp.rename;
+  _fsp.rename = async function(oldPath, newPath) {
+    try { return await _origRenameP.call(_fsp, oldPath, newPath); }
+    catch(e) {
+      if (e.code === 'ENOSYS' || e.code === 'EXDEV') {
+        await _fsp.copyFile(oldPath, newPath);
+        try { await _fsp.unlink(oldPath); } catch(_) {}
+        return;
+      }
+      throw e;
+    }
+  };
+}
+
+// ====================================================================
+// 5. fs.chmod/chown — fchmodat/fchownat may fail; tolerate ENOSYS
+// ====================================================================
+for (const fn of ['chmod', 'chown', 'lchown']) {
+  const origSync = _fs[fn + 'Sync'];
+  if (origSync) {
+    _fs[fn + 'Sync'] = function() {
+      try { return origSync.apply(_fs, arguments); }
+      catch(e) { if (e.code === 'ENOSYS') return; throw e; }
+    };
+  }
+  const origAsync = _fs[fn];
+  if (origAsync) {
+    _fs[fn] = function() {
+      const args = Array.from(arguments);
+      const cb = typeof args[args.length - 1] === 'function' ? args.pop() : null;
+      try { origSync.apply(_fs, args); if (cb) cb(null); }
+      catch(e) { if (e.code === 'ENOSYS') { if (cb) cb(null); } else { if (cb) cb(e); else throw e; } }
+    };
+  }
+}
+
+// ====================================================================
+// 6. fs.watch — inotify may fail; provide silent no-op fallback
+// ====================================================================
+const _origWatch = _fs.watch;
+_fs.watch = function(filename, options, listener) {
+  try { return _origWatch.call(_fs, filename, options, listener); }
+  catch(e) {
+    if (e.code === 'ENOSYS' || e.code === 'ENOSPC' || e.code === 'ENOENT') {
+      // Return a fake watcher that does nothing
+      const EventEmitter = require('events');
+      const fake = new EventEmitter();
+      fake.close = function() {};
+      fake.ref = function() { return this; };
+      fake.unref = function() { return this; };
+      return fake;
+    }
+    throw e;
+  }
+};
+
+// ====================================================================
+// 7. child_process.spawn — fork/posix_spawn ENOSYS in proot.
+//    IMPORTANT: Return FAILURE (not success) so callers know the command
+//    didn't run. Returning fake success causes npm to expect output files
+//    (like git clone results) that don't exist.
+// ====================================================================
+const _cp = require('child_process');
+const _EventEmitter = require('events');
+const _origSpawn = _cp.spawn;
+_cp.spawn = function(cmd, args, options) {
+  try {
+    const child = _origSpawn.call(_cp, cmd, args, options);
+    child.on('error', (err) => {
+      if (err.code === 'ENOSYS') {
+        // Signal failure so callers don't expect side effects
+        child.emit('close', 1, null);
+      }
+    });
+    return child;
+  } catch(e) {
+    if (e.code === 'ENOSYS') {
+      const fake = new _EventEmitter();
+      fake.stdout = new (require('stream').Readable)({ read() { this.push(null); } });
+      fake.stderr = new (require('stream').Readable)({ read() { this.push(null); } });
+      fake.stdin = new (require('stream').Writable)({ write(c,e,cb) { cb(); } });
+      fake.pid = 0;
+      fake.exitCode = null;
+      fake.kill = function() { return false; };
+      fake.ref = function() { return this; };
+      fake.unref = function() { return this; };
+      fake.connected = false;
+      fake.disconnect = function() {};
+      process.nextTick(() => {
+        fake.exitCode = 1;
+        fake.emit('close', 1, null);
+      });
+      return fake;
+    }
+    throw e;
+  }
+};
+const _origSpawnSync = _cp.spawnSync;
+_cp.spawnSync = function(cmd, args, options) {
+  try {
+    const r = _origSpawnSync.call(_cp, cmd, args, options);
+    if (r.error && r.error.code === 'ENOSYS') {
+      return { status: 1, signal: null, stdout: Buffer.alloc(0),
+               stderr: Buffer.from('spawn ENOSYS\n'),
+               pid: 0, output: [null, Buffer.alloc(0), Buffer.from('spawn ENOSYS\n')],
+               error: null };
+    }
+    return r;
+  } catch(e) {
+    if (e.code === 'ENOSYS') {
+      return { status: 1, signal: null, stdout: Buffer.alloc(0),
+               stderr: Buffer.from('spawn ENOSYS\n'),
+               pid: 0, output: [null, Buffer.alloc(0), Buffer.from('spawn ENOSYS\n')],
+               error: null };
+    }
+    throw e;
+  }
+};
+// Also patch exec/execFile which are wrappers around spawn
+const _origExecFile = _cp.execFile;
+_cp.execFile = function(file, args, options, cb) {
+  if (typeof args === 'function') { cb = args; args = []; options = {}; }
+  if (typeof options === 'function') { cb = options; options = {}; }
+  try { return _origExecFile.call(_cp, file, args, options, cb); }
+  catch(e) {
+    if (e.code === 'ENOSYS') {
+      if (cb) cb(Object.assign(new Error('spawn ENOSYS'), {code:'ENOSYS'}), '', '');
+      return;
+    }
+    throw e;
+  }
+};
+const _origExecFileSync = _cp.execFileSync;
+_cp.execFileSync = function(file, args, options) {
+  try { return _origExecFileSync.call(_cp, file, args, options); }
+  catch(e) {
+    if (e.code === 'ENOSYS' || (e.status === 1 && e.stderr && e.stderr.toString().includes('ENOSYS'))) {
+      return Buffer.alloc(0);
+    }
+    throw e;
+  }
+};
+""".trimIndent()
+        File(bypassDir, "proot-compat.js").writeText(prootCompatContent)
+
+        // 4. Bionic bypass — comprehensive runtime patcher for openclaw.
+        //    Loaded via NODE_OPTIONS="--require /root/.openclawd/bionic-bypass.js"
+        val bypassContent = """
+// OpenClawd Bionic Bypass - Auto-generated
+// Comprehensive runtime compatibility layer for proot on Android 10+.
+// Loaded via NODE_OPTIONS before any application code runs.
+
+// Load all proot compatibility patches (shared with node-wrapper.js)
+require('/root/.openclawd/proot-compat.js');
 """.trimIndent()
 
         File(bypassDir, "bionic-bypass.js").writeText(bypassContent)

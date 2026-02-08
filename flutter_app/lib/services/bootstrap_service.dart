@@ -242,7 +242,7 @@ class BootstrapService {
       // (sharp, node-pty) download prebuilts in postinstall — we handle
       // sharp manually below; node-pty is optional for gateway mode.
       await NativeBridge.runInProot(
-        '$nodeRun $npmCli install -g openclaw --ignore-scripts',
+        '$nodeRun $npmCli install -g openclaw --ignore-scripts --no-optional',
         timeout: 1800,
       );
 
@@ -251,16 +251,19 @@ class BootstrapService {
         progress: 0.7,
         message: 'Setting up native modules...',
       ));
-      // sharp needs its prebuilt libvips binary for linux-arm64.
-      // Normally postinstall fetches it; we download manually.
-      try {
-        await NativeBridge.runInProot(
-          '$nodeRun $npmCli rebuild sharp --ignore-scripts 2>/dev/null; '
-          'echo sharp_done',
-          timeout: 300,
-        );
-      } catch (_) {
-        // sharp is optional for core gateway functionality
+      // Native modules need their prebuilt binaries for linux-arm64.
+      // postinstall scripts can't run (spawn fails in proot), so we
+      // rebuild them individually. Each is optional — gateway works without them.
+      for (final mod in ['sharp', 'better-sqlite3']) {
+        try {
+          await NativeBridge.runInProot(
+            '$nodeRun $npmCli rebuild $mod --ignore-scripts 2>/dev/null; '
+            'echo ${mod}_done',
+            timeout: 300,
+          );
+        } catch (_) {
+          // Native modules are optional for core gateway
+        }
       }
 
       onProgress(const SetupState(
