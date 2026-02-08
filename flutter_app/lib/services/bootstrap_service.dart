@@ -215,12 +215,10 @@ class BootstrapService {
       // require() call triggers process.cwd() which crashes.
       // Fix: use node-wrapper.js which patches process.cwd before
       // loading the target script. Installed by installBionicBypass().
-      // Also unset NODE_OPTIONS (bionic-bypass only needed at gateway runtime).
+      // NOTE: Install mode uses env -i (no NODE_OPTIONS, npm_config_cache
+      // already set in env). node-wrapper.js patches broken syscalls.
       const wrapper = '/root/.openclawd/node-wrapper.js';
-      // npm needs a writable cache dir; /root/.npm doesn't exist yet
-      // and mkdir inside proot can fail. Use /tmp/npm-cache instead.
-      const nodeRun =
-          'unset NODE_OPTIONS; npm_config_cache=/tmp/npm-cache node $wrapper';
+      const nodeRun = 'node $wrapper';
       final npmCli = '/usr/lib/node_modules/npm/bin/npm-cli.js';
       await NativeBridge.runInProot(
         'node --version && $nodeRun $npmCli --version',

@@ -1048,10 +1048,17 @@ require('/root/.openclawd/proot-compat.js');
         // /proc/loadavg
         File(procDir, "loadavg").writeText("0.12 0.07 0.02 2/165 765\n")
 
-        // /proc/stat — minimal but valid
+        // /proc/stat — matching proot-distro (8 CPUs)
         File(procDir, "stat").writeText(
             "cpu  1957 0 2877 93280 262 342 254 87 0 0\n" +
             "cpu0 31 0 226 12027 82 10 4 9 0 0\n" +
+            "cpu1 45 0 290 11498 21 9 8 7 0 0\n" +
+            "cpu2 52 0 401 11730 36 15 6 10 0 0\n" +
+            "cpu3 42 0 268 11677 31 12 5 8 0 0\n" +
+            "cpu4 789 0 720 11364 26 100 83 18 0 0\n" +
+            "cpu5 486 0 438 11685 42 86 60 13 0 0\n" +
+            "cpu6 314 0 336 11808 45 68 52 11 0 0\n" +
+            "cpu7 198 0 198 11491 25 42 36 11 0 0\n" +
             "intr 63361 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n" +
             "ctxt 38014093\n" +
             "btime 1694292441\n" +
@@ -1064,14 +1071,14 @@ require('/root/.openclawd/proot-compat.js');
         // /proc/uptime
         File(procDir, "uptime").writeText("124.08 932.80\n")
 
-        // /proc/version — fake kernel info matching proot-distro
+        // /proc/version — fake kernel info matching proot-distro v4.37.0
         File(procDir, "version").writeText(
-            "Linux version 6.2.1-PRoot-Distro (proot@termux) " +
+            "Linux version ${ProcessManager.FAKE_KERNEL_RELEASE} (proot@termux) " +
             "(gcc (GCC) 13.3.0, GNU ld (GNU Binutils) 2.42) " +
-            "#1 SMP PREEMPT_DYNAMIC Sat, 01 Jan 2000 00:00:00 +0000\n"
+            "${ProcessManager.FAKE_KERNEL_VERSION}\n"
         )
 
-        // /proc/vmstat — minimal
+        // /proc/vmstat — matching proot-distro format
         File(procDir, "vmstat").writeText(
             "nr_free_pages 1743136\n" +
             "nr_zone_inactive_anon 179281\n" +
@@ -1081,10 +1088,22 @@ require('/root/.openclawd/proot-compat.js');
             "nr_zone_unevictable 642\n" +
             "nr_zone_write_pending 0\n" +
             "nr_mlock 0\n" +
+            "nr_slab_reclaimable 7520\n" +
+            "nr_slab_unreclaimable 10776\n" +
             "pgpgin 198292\n" +
-            "pgpgout bandoned 0\n" +
+            "pgpgout 7674\n" +
             "pswpin 0\n" +
-            "pswpout 0\n"
+            "pswpout 0\n" +
+            "pgalloc_dma 0\n" +
+            "pgalloc_dma32 0\n" +
+            "pgalloc_normal 44669136\n" +
+            "pgfree 46674674\n" +
+            "pgactivate 1085674\n" +
+            "pgdeactivate 340776\n" +
+            "pglazyfree 139872\n" +
+            "pgfault 37291463\n" +
+            "pgmajfault 6854\n" +
+            "pgrefill 480634\n"
         )
 
         // /proc/sys/kernel/cap_last_cap
