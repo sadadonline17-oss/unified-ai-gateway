@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/native_bridge.dart';
 import '../services/terminal_service.dart';
 import '../widgets/terminal_toolbar.dart';
 
@@ -34,6 +35,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     super.initState();
     _terminal = Terminal(maxLines: 10000);
     _controller = TerminalController();
+    NativeBridge.startTerminalService();
     _startPty();
   }
 
@@ -79,6 +81,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   void dispose() {
     _controller.dispose();
     _pty?.kill();
+    NativeBridge.stopTerminalService();
     super.dispose();
   }
 

@@ -74,6 +74,26 @@ class NativeBridge {
     return await _channel.invokeMethod('createBinWrappers', {'packageName': packageName});
   }
 
+  static Future<bool> startTerminalService() async {
+    return await _channel.invokeMethod('startTerminalService');
+  }
+
+  static Future<bool> stopTerminalService() async {
+    return await _channel.invokeMethod('stopTerminalService');
+  }
+
+  static Future<bool> isTerminalServiceRunning() async {
+    return await _channel.invokeMethod('isTerminalServiceRunning');
+  }
+
+  static Future<bool> requestBatteryOptimization() async {
+    return await _channel.invokeMethod('requestBatteryOptimization');
+  }
+
+  static Future<bool> isBatteryOptimized() async {
+    return await _channel.invokeMethod('isBatteryOptimized');
+  }
+
   static Stream<String> get gatewayLogStream {
     return _eventChannel.receiveBroadcastStream().map((event) => event.toString());
   }

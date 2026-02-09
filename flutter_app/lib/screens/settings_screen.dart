@@ -14,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _prefs = PreferencesService();
   bool _autoStart = false;
+  bool _batteryOptimized = true;
   String _arch = '';
   String _prootPath = '';
   Map<String, dynamic> _status = {};
@@ -32,9 +33,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final arch = await NativeBridge.getArch();
       final prootPath = await NativeBridge.getProotPath();
       final status = await NativeBridge.getBootstrapStatus();
+      final batteryOptimized = await NativeBridge.isBatteryOptimized();
 
       setState(() {
         _autoStart = _prefs.autoStartGateway;
+        _batteryOptimized = batteryOptimized;
         _arch = arch;
         _prootPath = prootPath;
         _status = status;
@@ -65,6 +68,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: (value) {
                     setState(() => _autoStart = value);
                     _prefs.autoStartGateway = value;
+                  },
+                ),
+                ListTile(
+                  title: const Text('Battery Optimization'),
+                  subtitle: Text(_batteryOptimized
+                      ? 'Optimized (may kill background sessions)'
+                      : 'Unrestricted (recommended)'),
+                  leading: const Icon(Icons.battery_alert),
+                  trailing: _batteryOptimized
+                      ? const Icon(Icons.warning, color: Colors.orange)
+                      : const Icon(Icons.check_circle, color: Colors.green),
+                  onTap: () async {
+                    await NativeBridge.requestBatteryOptimization();
+                    // Refresh status after returning from settings
+                    final optimized = await NativeBridge.isBatteryOptimized();
+                    setState(() => _batteryOptimized = optimized);
                   },
                 ),
                 const Divider(),

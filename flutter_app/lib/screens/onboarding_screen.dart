@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/native_bridge.dart';
 import '../services/terminal_service.dart';
 import '../services/preferences_service.dart';
 import '../widgets/terminal_toolbar.dart';
@@ -44,6 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     _terminal = Terminal(maxLines: 10000);
     _controller = TerminalController();
+    NativeBridge.startTerminalService();
     _startOnboarding();
   }
 
@@ -110,6 +112,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void dispose() {
     _controller.dispose();
     _pty?.kill();
+    NativeBridge.stopTerminalService();
     super.dispose();
   }
 

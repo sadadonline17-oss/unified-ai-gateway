@@ -1,5 +1,9 @@
 package com.openclawd.app
 
+import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -90,6 +94,40 @@ class MainActivity : FlutterActivity() {
                 }
                 "isGatewayRunning" -> {
                     result.success(GatewayService.isRunning)
+                }
+                "startTerminalService" -> {
+                    try {
+                        TerminalSessionService.start(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "stopTerminalService" -> {
+                    try {
+                        TerminalSessionService.stop(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "isTerminalServiceRunning" -> {
+                    result.success(TerminalSessionService.isRunning)
+                }
+                "requestBatteryOptimization" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                            data = Uri.parse("package:${packageName}")
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("BATTERY_ERROR", e.message, null)
+                    }
+                }
+                "isBatteryOptimized" -> {
+                    val pm = getSystemService(POWER_SERVICE) as PowerManager
+                    result.success(!pm.isIgnoringBatteryOptimizations(packageName))
                 }
                 "setupDirs" -> {
                     Thread {
