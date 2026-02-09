@@ -108,7 +108,11 @@ class BootstrapService {
         'echo permissions_fixed',
       );
 
-      // --- Install base packages (ca-certificates needed for HTTPS) ---
+      // --- Install base packages ---
+      // ca-certificates: needed for HTTPS (npm, git)
+      // git: openclaw has git dependencies (@whiskeysockets/libsignal-node)
+      //      that npm must clone. git needs fork/exec which should work
+      //      now with our clean proot setup matching Termux.
       onProgress(const SetupState(
         step: SetupStep.installingNode,
         progress: 0.1,
@@ -122,7 +126,8 @@ class BootstrapService {
         message: 'Downloading base packages...',
       ));
       await NativeBridge.runInProot(
-        'apt-get -q -d install -y --no-install-recommends ca-certificates',
+        'apt-get -q -d install -y --no-install-recommends '
+        'ca-certificates git',
       );
 
       onProgress(const SetupState(
@@ -134,7 +139,7 @@ class BootstrapService {
 
       onProgress(const SetupState(
         step: SetupStep.installingNode,
-        progress: 0.25,
+        progress: 0.22,
         message: 'Configuring certificates...',
       ));
       try {
@@ -146,6 +151,20 @@ class BootstrapService {
           'echo certs_done',
         );
       }
+
+      // Configure git to use HTTPS instead of SSH (no SSH keys in proot).
+      // npm uses ssh://git@github.com/... for git deps by default.
+      onProgress(const SetupState(
+        step: SetupStep.installingNode,
+        progress: 0.25,
+        message: 'Configuring git...',
+      ));
+      await NativeBridge.runInProot(
+        'git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && '
+        'git config --global url."https://github.com/".insteadOf "git@github.com:" && '
+        'git config --global advice.detachedHead false && '
+        'echo git_configured',
+      );
 
       // --- Install Node.js via binary tarball ---
       // Download directly from nodejs.org (bypasses curl/gpg/NodeSource
