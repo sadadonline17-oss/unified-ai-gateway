@@ -7,33 +7,77 @@
 [![Termux](https://img.shields.io/badge/Termux-F--Droid-orange)](https://f-droid.org/packages/com.termux/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/mithun50/openclawd-termux/pulls)
 
-> Run OpenClaw AI Gateway on Android using Termux with automatic proot Ubuntu setup and Bionic Bypass fix.
+> Run OpenClaw AI Gateway on Android — standalone Flutter app with built-in terminal, web dashboard, and one-tap setup. Also available as a Termux CLI package.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20Termux-blue" alt="Platform">
+  <img src="https://img.shields.io/badge/Platform-Android-blue" alt="Platform">
+  <img src="https://img.shields.io/badge/Flutter-3.2%2B-02569B?logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/Status-Active-success" alt="Status">
 </p>
 
 ---
 
-## Features
+## What is OpenClawd?
 
-- **One-Command Setup** - Automatically installs proot-distro, Ubuntu, Node.js 22, and OpenClaw
-- **Bionic Bypass** - Fixes `os.networkInterfaces()` crash on Android's Bionic libc
-- **Smart Loading** - Shows spinner until gateway is actually ready
-- **Pass-through Commands** - Run any OpenClaw command directly via `openclawdx`
+OpenClawd brings the [OpenClaw](https://github.com/anthropics/openclaw) AI gateway to Android. It sets up a full Ubuntu environment via proot, installs Node.js and OpenClaw, and provides a native Flutter UI to manage everything — no root required.
+
+### Two Ways to Use
+
+| | **Flutter App** (Standalone) | **Termux CLI** |
+|---|---|---|
+| Install | Build APK or download release | `npm install -g openclawd-termux` |
+| Setup | Tap "Begin Setup" | `openclawdx setup` |
+| Gateway | Tap "Start Gateway" | `openclawdx start` |
+| Terminal | Built-in terminal emulator | Termux shell |
+| Dashboard | Built-in WebView | Browser at `localhost:18789` |
 
 ---
 
-## Quick Install
+## Features
 
-### One-liner (recommended)
+### Flutter App
+- **One-Tap Setup** — Downloads Ubuntu rootfs, Node.js 22, and OpenClaw automatically
+- **Built-in Terminal** — Full terminal emulator with extra keys toolbar, copy/paste, clickable URLs
+- **Gateway Controls** — Start/stop gateway with status indicator and health checks
+- **Token URL Display** — Captures auth token from onboarding, shows it with a copy button
+- **Web Dashboard** — Embedded WebView loads the dashboard with authentication token
+- **View Logs** — Real-time gateway log viewer with search/filter
+- **Onboarding** — Configure API keys and binding directly in-app
+- **Settings** — Auto-start, battery optimization, system info, re-run setup
+- **Foreground Service** — Keeps the gateway alive in the background
+
+### Termux CLI
+- **One-Command Setup** — Installs proot-distro, Ubuntu, Node.js 22, and OpenClaw
+- **Bionic Bypass** — Fixes `os.networkInterfaces()` crash on Android's Bionic libc
+- **Smart Loading** — Shows spinner until the gateway is ready
+- **Pass-through Commands** — Run any OpenClaw command via `openclawdx`
+
+---
+
+## Quick Start
+
+### Flutter App (Recommended)
+
+1. Clone and build the APK:
+   ```bash
+   git clone https://github.com/mithun50/openclawd-termux.git
+   cd openclawd-termux/flutter_app
+   flutter build apk
+   ```
+2. Install the APK on your Android device
+3. Open the app and tap **Begin Setup**
+4. After setup completes, configure your API keys in **Onboarding**
+5. Tap **Start Gateway** on the dashboard
+
+### Termux CLI
+
+#### One-liner (recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mithun50/openclawd-termux/main/install.sh | bash
 ```
 
-### Or via npm
+#### Or via npm
 
 ```bash
 npm install -g openclawd-termux
@@ -47,12 +91,12 @@ openclawdx setup
 | Requirement | Details |
 |-------------|---------|
 | **Android** | 10 or higher |
-| **Termux** | From [F-Droid](https://f-droid.org/packages/com.termux/) (NOT Play Store) |
-| **Storage** | ~2GB for Ubuntu + OpenClaw |
+| **Storage** | ~500MB for Ubuntu + Node.js + OpenClaw |
+| **Termux** (CLI only) | From [F-Droid](https://f-droid.org/packages/com.termux/) (NOT Play Store) |
 
 ---
 
-## Usage
+## CLI Usage
 
 ```bash
 # First-time setup (installs proot + Ubuntu + Node.js + OpenClaw)
@@ -77,19 +121,66 @@ openclawdx gateway --verbose
 
 ---
 
-## How It Works
+## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│     Termux      │     │  proot-distro   │     │     Ubuntu      │
-│   openclawdx    │ ──► │                 │ ──► │    OpenClaw     │
-│                 │     │  Bionic Bypass  │     │    Gateway      │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+┌──────────────────────────────────────────────┐
+│              Flutter App (Dart)               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────────┐  │
+│  │ Terminal  │ │ Gateway  │ │ Web Dashboard│  │
+│  │ Emulator  │ │ Controls │ │   (WebView)  │  │
+│  └─────┬────┘ └─────┬────┘ └──────┬───────┘  │
+│        │            │             │           │
+│  ┌─────┴────────────┴─────────────┴────────┐  │
+│  │         Native Bridge (Kotlin)          │  │
+│  └─────────────────┬───────────────────────┘  │
+└────────────────────┼─────────────────────────┘
+                     │
+┌────────────────────┼─────────────────────────┐
+│  proot-distro      │          Ubuntu          │
+│  ┌─────────────────┴──────────────────────┐   │
+│  │   Node.js 22 + Bionic Bypass           │   │
+│  │   ┌─────────────────────────────────┐  │   │
+│  │   │  OpenClaw AI Gateway            │  │   │
+│  │   │  http://localhost:18789         │  │   │
+│  │   └─────────────────────────────────┘  │   │
+│  └────────────────────────────────────────┘   │
+└───────────────────────────────────────────────┘
 ```
 
-1. **openclawdx** runs in Termux
-2. Commands are passed through **proot-distro** with Bionic Bypass
-3. **OpenClaw** runs inside Ubuntu environment
+### Flutter App Structure
+
+```
+flutter_app/lib/
+├── main.dart                  # App entry point
+├── constants.dart             # App constants, URLs, author info
+├── models/
+│   ├── gateway_state.dart     # Gateway status, logs, token URL
+│   └── setup_state.dart       # Setup wizard progress
+├── providers/
+│   ├── gateway_provider.dart  # Gateway state management
+│   └── setup_provider.dart    # Setup state management
+├── screens/
+│   ├── splash_screen.dart     # Launch screen with routing
+│   ├── setup_wizard_screen.dart # First-time environment setup
+│   ├── onboarding_screen.dart # API key configuration terminal
+│   ├── dashboard_screen.dart  # Main dashboard with quick actions
+│   ├── terminal_screen.dart   # Full terminal emulator
+│   ├── web_dashboard_screen.dart # WebView for OpenClaw dashboard
+│   ├── logs_screen.dart       # Gateway log viewer
+│   └── settings_screen.dart   # App settings and about
+├── services/
+│   ├── native_bridge.dart     # Kotlin platform channel bridge
+│   ├── gateway_service.dart   # Gateway lifecycle and health checks
+│   ├── terminal_service.dart  # proot shell configuration
+│   ├── bootstrap_service.dart # Environment setup orchestration
+│   └── preferences_service.dart # Persistent settings (token URL, etc.)
+└── widgets/
+    ├── gateway_controls.dart  # Start/stop, URL display, copy button
+    ├── terminal_toolbar.dart  # Extra keys (Tab, Ctrl, Esc, arrows)
+    ├── status_card.dart       # Reusable status card
+    └── progress_step.dart     # Setup wizard step indicator
+```
 
 ---
 
@@ -97,22 +188,27 @@ openclawdx gateway --verbose
 
 ### Onboarding
 
-When running `openclawdx onboarding`:
+When running onboarding (in-app or via `openclawdx onboarding`):
 
 - **Binding**: Select `Loopback (127.0.0.1)` for non-rooted devices
 - **API Keys**: Add your Gemini/OpenAI/Claude keys
+- **Token URL**: The app automatically captures and stores the auth token URL (e.g. `http://localhost:18789/#token=...`)
 
 ### Battery Optimization
 
-> **Important:** Disable battery optimization for Termux
+> **Important:** Disable battery optimization for the app to keep the gateway alive in the background.
 
-Settings → Apps → Termux → Battery → **Unrestricted**
+**For the Flutter app:** Settings > Battery Optimization > tap to disable
+
+**For Termux:** Android Settings > Apps > Termux > Battery > **Unrestricted**
 
 ---
 
 ## Dashboard
 
-Access the web dashboard at: **http://127.0.0.1:18789**
+Access the web dashboard at the token URL shown in the app (e.g. `http://localhost:18789/#token=...`).
+
+The Flutter app automatically loads the dashboard with your auth token via the built-in WebView.
 
 | Command | Description |
 |---------|-------------|
@@ -139,7 +235,7 @@ openclawdx onboarding
 
 ### "os.networkInterfaces" error
 
-Bionic Bypass not configured. Run:
+Bionic Bypass not configured. Run setup again:
 
 ```bash
 openclawdx setup
@@ -147,7 +243,7 @@ openclawdx setup
 
 ### Process killed in background
 
-Disable battery optimization for Termux in Android settings.
+Disable battery optimization for the app in Android settings.
 
 ### Permission denied
 
@@ -225,13 +321,6 @@ openclaw gateway --verbose
 
 ---
 
-## Credits
-
-- Based on the guide by [Sagar Tamang](https://sagartamang.com/blog/openclaw-on-android-termux)
-- [OpenClaw](https://github.com/anthropics/openclaw) project
-
----
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -241,6 +330,15 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+---
+
+## Author
+
+**Mithun Gowda B**
+
+- GitHub: [@mithun50](https://github.com/mithun50)
+- Email: mithungowda.b7411@gmail.com
 
 ---
 
