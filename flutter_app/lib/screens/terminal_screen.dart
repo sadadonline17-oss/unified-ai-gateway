@@ -18,6 +18,16 @@ class _TerminalScreenState extends State<TerminalScreen> {
   bool _loading = true;
   String? _error;
 
+  // Font fallback for emojis, box-drawing, and Unicode symbols.
+  // Android's monospace font lacks these; system fonts fill the gaps.
+  static const _fontFallback = [
+    'Noto Color Emoji',
+    'Noto Sans Symbols',
+    'Noto Sans Symbols 2',
+    'Noto Sans Mono',
+    'sans-serif',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +51,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
       );
 
       _pty!.output.cast<List<int>>().listen((data) {
-        _terminal.write(String.fromCharCodes(data));
+        // Decode as UTF-8 (not fromCharCodes which breaks multi-byte
+        // characters like emojis, box-drawing, accented letters).
+        _terminal.write(utf8.decode(data, allowMalformed: true));
       });
 
       _pty!.exitCode.then((code) {
@@ -150,9 +162,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
         Expanded(
           child: TerminalView(
             _terminal,
-            textStyle: const TerminalStyle(
+            textStyle: TerminalStyle(
               fontSize: 14,
               fontFamily: 'monospace',
+              fontFamilyFallback: _fontFallback,
             ),
           ),
         ),

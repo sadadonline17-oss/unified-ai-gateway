@@ -28,6 +28,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _finished = false;
   String? _error;
 
+  static const _fontFallback = [
+    'Noto Color Emoji',
+    'Noto Sans Symbols',
+    'Noto Sans Symbols 2',
+    'Noto Sans Mono',
+    'sans-serif',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -67,7 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
 
       _pty!.output.cast<List<int>>().listen((data) {
-        _terminal.write(String.fromCharCodes(data));
+        _terminal.write(utf8.decode(data, allowMalformed: true));
       });
 
       _pty!.exitCode.then((code) {
@@ -183,9 +191,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Expanded(
               child: TerminalView(
                 _terminal,
-                textStyle: const TerminalStyle(
+                textStyle: TerminalStyle(
                   fontSize: 14,
                   fontFamily: 'monospace',
+                  fontFamilyFallback: _fontFallback,
                 ),
               ),
             ),
