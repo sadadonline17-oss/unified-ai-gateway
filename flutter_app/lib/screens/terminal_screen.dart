@@ -4,8 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../constants.dart';
-import '../services/native_bridge.dart';
 import '../services/terminal_service.dart';
 import '../widgets/terminal_toolbar.dart';
 
@@ -22,10 +20,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Pty? _pty;
   bool _loading = true;
   String? _error;
-  final List<String> _detectedUrls = [];
-  String _outputBuffer = '';
   static final _anyUrlRegex = RegExp(r'https?://[^\s<>\[\]"' "'" r'\)]+');
-  static final _ansiEscape = AppConstants.ansiEscape;
+  /// Box-drawing and other TUI characters that break URLs when copied
+  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘]+');
 
   static const _fontFallback = [
     'Noto Color Emoji',
@@ -60,26 +57,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
       _pty!.output.cast<List<int>>().listen((data) {
         final text = utf8.decode(data, allowMalformed: true);
         _terminal.write(text);
-        // Detect URLs from output
-        _outputBuffer += text;
-        if (_outputBuffer.length > 4096) {
-          _outputBuffer = _outputBuffer.substring(_outputBuffer.length - 2048);
-        }
-        final cleanForUrl = _outputBuffer
-            .replaceAll(_ansiEscape, '')
-            .replaceAll(RegExp(r'\s+'), '');
-        bool urlsChanged = false;
-        for (final m in _anyUrlRegex.allMatches(cleanForUrl)) {
-          final url = m.group(0)!;
-          if (!_detectedUrls.contains(url)) {
-            _detectedUrls.add(url);
-            urlsChanged = true;
-            NativeBridge.showUrlNotification(url, title: 'OpenClaw URL');
-          }
-        }
-        if (urlsChanged && mounted) {
-          setState(() {});
-        }
       });
 
       _pty!.exitCode.then((code) {
@@ -111,9 +88,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
     super.dispose();
   }
 
-  void _copySelection() {
+  String? _getSelectedText() {
     final selection = _controller.selection;
-    if (selection == null || selection.isCollapsed) return;
+    if (selection == null || selection.isCollapsed) return null;
 
     final range = selection.normalized;
     final sb = StringBuffer();
@@ -125,10 +102,43 @@ class _TerminalScreenState extends State<TerminalScreen> {
       sb.write(line.getText(from, to));
       if (y < range.end.y) sb.writeln();
     }
+    final text = sb.toString().trim();
+    return text.isEmpty ? null : text;
+  }
 
-    final text = sb.toString();
-    if (text.isNotEmpty) {
-      Clipboard.setData(ClipboardData(text: text));
+  /// Strip box-drawing chars and whitespace to reconstruct URLs
+  /// that got split by terminal line wrapping / TUI borders.
+  String? _extractUrl(String text) {
+    final clean = text.replaceAll(_boxDrawing, '').replaceAll(RegExp(r'\s+'), '');
+    final match = _anyUrlRegex.firstMatch(clean);
+    return match?.group(0);
+  }
+
+  void _copySelection() {
+    final text = _getSelectedText();
+    if (text == null) return;
+
+    Clipboard.setData(ClipboardData(text: text));
+
+    // If the copied text contains a URL, offer "Open" action
+    final url = _extractUrl(text);
+    if (url != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Copied to clipboard'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () {
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Copied to clipboard'),
@@ -136,6 +146,26 @@ class _TerminalScreenState extends State<TerminalScreen> {
         ),
       );
     }
+  }
+
+  void _openSelection() {
+    final text = _getSelectedText();
+    if (text == null) return;
+
+    final url = _extractUrl(text);
+    if (url != null) {
+      final uri = Uri.tryParse(url);
+      if (uri != null) {
+        launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No URL found in selection'),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   Future<void> _paste() async {
@@ -146,46 +176,24 @@ class _TerminalScreenState extends State<TerminalScreen> {
   }
 
   /// Detect URLs in terminal at tap position. Joins adjacent lines
-  /// to handle URLs that wrap across terminal line boundaries.
+  /// and strips box-drawing chars to handle wrapped URLs.
   void _handleTap(TapUpDetails details, CellOffset offset) {
     final totalLines = _terminal.buffer.lines.length;
     final startRow = (offset.y - 2).clamp(0, totalLines - 1);
     final endRow = (offset.y + 2).clamp(0, totalLines - 1);
 
     final sb = StringBuffer();
-    int tapOffset = 0;
     for (int row = startRow; row <= endRow; row++) {
-      final lineText = _getLineText(row);
-      if (row == offset.y) {
-        tapOffset = sb.length + offset.x;
-      }
-      sb.write(lineText.trimRight());
+      sb.write(_getLineText(row).trimRight());
     }
-    final combined = sb.toString();
+    final combined = sb.toString()
+        .replaceAll(_boxDrawing, '')
+        .replaceAll(RegExp(r'\s+'), '');
     if (combined.isEmpty) return;
 
-    final urlPattern = RegExp(
-      r'https?://[^\s<>\[\]"' "'" r'\)]+',
-      caseSensitive: false,
-    );
-    for (final match in urlPattern.allMatches(combined)) {
-      if (tapOffset >= match.start && tapOffset <= match.end) {
-        _openUrl(match.group(0)!);
-        return;
-      }
-    }
-    // Fallback: if tap didn't land precisely inside a URL, check if any
-    // URL overlaps the tapped line region in the combined text.
-    final tappedLine = _getLineText(offset.y).trimRight();
-    final lineStart = combined.indexOf(tappedLine);
-    if (lineStart >= 0) {
-      final lineEnd = lineStart + tappedLine.length;
-      for (final match in urlPattern.allMatches(combined)) {
-        if (match.start < lineEnd && match.end > lineStart) {
-          _openUrl(match.group(0)!);
-          return;
-        }
-      }
+    final match = _anyUrlRegex.firstMatch(combined);
+    if (match != null) {
+      _openUrl(match.group(0)!);
     }
   }
 
@@ -255,6 +263,11 @@ class _TerminalScreenState extends State<TerminalScreen> {
             icon: const Icon(Icons.copy),
             tooltip: 'Copy',
             onPressed: _copySelection,
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: 'Open URL',
+            onPressed: _openSelection,
           ),
           IconButton(
             icon: const Icon(Icons.paste),
@@ -331,8 +344,6 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     return Column(
       children: [
-        if (_detectedUrls.isNotEmpty)
-          _buildUrlBanner(context),
         Expanded(
           child: TerminalView(
             _terminal,
@@ -350,114 +361,4 @@ class _TerminalScreenState extends State<TerminalScreen> {
     );
   }
 
-  Widget _buildUrlBanner(BuildContext context) {
-    final lastUrl = _detectedUrls.last;
-    final count = _detectedUrls.length;
-    return Material(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Icon(Icons.link, size: 18,
-                color: Theme.of(context).colorScheme.onPrimaryContainer),
-            const SizedBox(width: 8),
-            Expanded(
-              child: GestureDetector(
-                onTap: count > 1 ? () => _showAllUrls(context) : null,
-                child: Text(
-                  count > 1 ? '$count URLs detected (tap to see all)' : 'URL detected',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    decoration: count > 1 ? TextDecoration.underline : null,
-                  ),
-                ),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: lastUrl));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('URL copied to clipboard'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.copy, size: 16),
-              label: const Text('Copy'),
-            ),
-            TextButton.icon(
-              onPressed: () {
-                final uri = Uri.tryParse(lastUrl);
-                if (uri != null) {
-                  launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
-              icon: const Icon(Icons.open_in_browser, size: 16),
-              label: const Text('Open'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAllUrls(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Detected URLs',
-                  style: Theme.of(context).textTheme.titleMedium),
-            ),
-            ...List.generate(_detectedUrls.length, (i) {
-              final url = _detectedUrls[_detectedUrls.length - 1 - i];
-              return ListTile(
-                leading: const Icon(Icons.link, size: 20),
-                title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 18),
-                      tooltip: 'Copy',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: url));
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('URL copied'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.open_in_browser, size: 18),
-                      tooltip: 'Open',
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        final uri = Uri.tryParse(url);
-                        if (uri != null) {
-                          launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
 }
