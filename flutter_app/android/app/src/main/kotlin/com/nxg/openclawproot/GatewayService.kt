@@ -1,4 +1,4 @@
-package com.openclawd.app
+package com.nxg.openclawproot
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -16,7 +16,7 @@ import java.io.InputStreamReader
 
 class GatewayService : Service() {
     companion object {
-        const val CHANNEL_ID = "openclawd_gateway"
+        const val CHANNEL_ID = "openclaw_gateway"
         const val NOTIFICATION_ID = 1
         var isRunning = false
             private set
@@ -42,6 +42,8 @@ class GatewayService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var restartCount = 0
     private val maxRestarts = 3
+    private var startTime: Long = 0
+    private var uptimeThread: Thread? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -60,6 +62,8 @@ class GatewayService : Service() {
     override fun onDestroy() {
         isRunning = false
         instance = null
+        uptimeThread?.interrupt()
+        uptimeThread = null
         stopGateway()
         releaseWakeLock()
         super.onDestroy()
@@ -68,6 +72,7 @@ class GatewayService : Service() {
     private fun startGateway() {
         isRunning = true
         instance = this
+        startTime = System.currentTimeMillis()
 
         Thread {
             try {
@@ -76,8 +81,9 @@ class GatewayService : Service() {
                 val pm = ProcessManager(filesDir, nativeLibDir)
 
                 gatewayProcess = pm.startProotProcess("openclaw gateway --verbose")
-                updateNotification("Gateway running on port 18789")
+                updateNotificationRunning()
                 emitLog("Gateway started")
+                startUptimeTicker()
 
                 // Read stdout
                 val stdoutReader = BufferedReader(InputStreamReader(gatewayProcess!!.inputStream))
@@ -129,11 +135,43 @@ class GatewayService : Service() {
 
     private fun stopGateway() {
         restartCount = maxRestarts // Prevent auto-restart
+        uptimeThread?.interrupt()
+        uptimeThread = null
         gatewayProcess?.let {
             it.destroyForcibly()
             gatewayProcess = null
         }
         emitLog("Gateway stopped by user")
+    }
+
+    private fun startUptimeTicker() {
+        uptimeThread?.interrupt()
+        uptimeThread = Thread {
+            try {
+                while (!Thread.interrupted() && isRunning) {
+                    Thread.sleep(60_000) // Update every minute
+                    if (isRunning) {
+                        updateNotificationRunning()
+                    }
+                }
+            } catch (_: InterruptedException) {}
+        }.apply { isDaemon = true; start() }
+    }
+
+    private fun formatUptime(): String {
+        val elapsed = System.currentTimeMillis() - startTime
+        val seconds = elapsed / 1000
+        val minutes = seconds / 60
+        val hours = minutes / 60
+        return when {
+            hours > 0 -> "${hours}h ${minutes % 60}m"
+            minutes > 0 -> "${minutes}m"
+            else -> "${seconds}s"
+        }
+    }
+
+    private fun updateNotificationRunning() {
+        updateNotification("Running on port 18789 \u2022 ${formatUptime()}")
     }
 
     private fun emitLog(message: String) {
@@ -146,7 +184,7 @@ class GatewayService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "OpenClawd::GatewayWakeLock"
+            "OpenClaw::GatewayWakeLock"
         )
         wakeLock?.acquire(24 * 60 * 60 * 1000L) // 24 hours max
     }
@@ -162,10 +200,10 @@ class GatewayService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "OpenClawd Gateway",
+                "OpenClaw Gateway",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps the OpenClawd gateway running in the background"
+                description = "Keeps the OpenClaw gateway running in the background"
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -179,24 +217,27 @@ class GatewayService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("OpenClawd Gateway")
-                .setContentText(text)
-                .setSmallIcon(android.R.drawable.ic_menu_manage)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("OpenClawd Gateway")
-                .setContentText(text)
-                .setSmallIcon(android.R.drawable.ic_menu_manage)
-                .setContentIntent(pendingIntent)
-                .setOngoing(true)
-                .build()
         }
+
+        builder.setContentTitle("OpenClaw Gateway")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+
+        // Show elapsed time chronometer when running
+        if (isRunning && startTime > 0) {
+            builder.setWhen(startTime)
+            builder.setShowWhen(true)
+            builder.setUsesChronometer(true)
+        }
+
+        return builder.build()
     }
 
     private fun updateNotification(text: String) {

@@ -39,7 +39,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Setup OpenClawd',
+                    'Setup OpenClaw',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),

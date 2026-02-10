@@ -19,7 +19,7 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('OpenClawd'),
+        title: const Text('OpenClaw'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -100,7 +100,7 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    'OpenClawd v${AppConstants.version}',
+                    'OpenClaw v${AppConstants.version}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),

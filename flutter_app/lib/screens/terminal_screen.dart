@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../constants.dart';
 import '../services/native_bridge.dart';
 import '../services/terminal_service.dart';
 import '../widgets/terminal_toolbar.dart';
@@ -21,6 +22,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Pty? _pty;
   bool _loading = true;
   String? _error;
+  final List<String> _detectedUrls = [];
+  String _outputBuffer = '';
+  static final _anyUrlRegex = RegExp(r'https?://[^\s<>\[\]"' "'" r'\)]+');
+  static final _ansiEscape = AppConstants.ansiEscape;
 
   static const _fontFallback = [
     'Noto Color Emoji',
@@ -53,7 +58,28 @@ class _TerminalScreenState extends State<TerminalScreen> {
       );
 
       _pty!.output.cast<List<int>>().listen((data) {
-        _terminal.write(utf8.decode(data, allowMalformed: true));
+        final text = utf8.decode(data, allowMalformed: true);
+        _terminal.write(text);
+        // Detect URLs from output
+        _outputBuffer += text;
+        if (_outputBuffer.length > 4096) {
+          _outputBuffer = _outputBuffer.substring(_outputBuffer.length - 2048);
+        }
+        final cleanForUrl = _outputBuffer
+            .replaceAll(_ansiEscape, '')
+            .replaceAll(RegExp(r'\s+'), '');
+        bool urlsChanged = false;
+        for (final m in _anyUrlRegex.allMatches(cleanForUrl)) {
+          final url = m.group(0)!;
+          if (!_detectedUrls.contains(url)) {
+            _detectedUrls.add(url);
+            urlsChanged = true;
+            NativeBridge.showUrlNotification(url, title: 'OpenClaw URL');
+          }
+        }
+        if (urlsChanged && mounted) {
+          setState(() {});
+        }
       });
 
       _pty!.exitCode.then((code) {
@@ -119,25 +145,46 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
   }
 
-  /// Detect URLs in terminal line at tap position and open them.
+  /// Detect URLs in terminal at tap position. Joins adjacent lines
+  /// to handle URLs that wrap across terminal line boundaries.
   void _handleTap(TapUpDetails details, CellOffset offset) {
-    // Read the line from the terminal buffer
-    final line = _terminal.buffer.lines.length > offset.y
-        ? _getLineText(offset.y)
-        : '';
-    if (line.isEmpty) return;
+    final totalLines = _terminal.buffer.lines.length;
+    final startRow = (offset.y - 2).clamp(0, totalLines - 1);
+    final endRow = (offset.y + 2).clamp(0, totalLines - 1);
 
-    // Find URLs in the line
+    final sb = StringBuffer();
+    int tapOffset = 0;
+    for (int row = startRow; row <= endRow; row++) {
+      final lineText = _getLineText(row);
+      if (row == offset.y) {
+        tapOffset = sb.length + offset.x;
+      }
+      sb.write(lineText.trimRight());
+    }
+    final combined = sb.toString();
+    if (combined.isEmpty) return;
+
     final urlPattern = RegExp(
-      r'https?://[^\s<>\[\]"''\)]+',
+      r'https?://[^\s<>\[\]"' "'" r'\)]+',
       caseSensitive: false,
     );
-    for (final match in urlPattern.allMatches(line)) {
-      final url = match.group(0)!;
-      // Check if tap x-position is within or near the URL
-      if (offset.x >= match.start && offset.x <= match.end) {
-        _openUrl(url);
+    for (final match in urlPattern.allMatches(combined)) {
+      if (tapOffset >= match.start && tapOffset <= match.end) {
+        _openUrl(match.group(0)!);
         return;
+      }
+    }
+    // Fallback: if tap didn't land precisely inside a URL, check if any
+    // URL overlaps the tapped line region in the combined text.
+    final tappedLine = _getLineText(offset.y).trimRight();
+    final lineStart = combined.indexOf(tappedLine);
+    if (lineStart >= 0) {
+      final lineEnd = lineStart + tappedLine.length;
+      for (final match in urlPattern.allMatches(combined)) {
+        if (match.start < lineEnd && match.end > lineStart) {
+          _openUrl(match.group(0)!);
+          return;
+        }
       }
     }
   }
@@ -284,6 +331,8 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     return Column(
       children: [
+        if (_detectedUrls.isNotEmpty)
+          _buildUrlBanner(context),
         Expanded(
           child: TerminalView(
             _terminal,
@@ -298,6 +347,117 @@ class _TerminalScreenState extends State<TerminalScreen> {
         ),
         TerminalToolbar(pty: _pty),
       ],
+    );
+  }
+
+  Widget _buildUrlBanner(BuildContext context) {
+    final lastUrl = _detectedUrls.last;
+    final count = _detectedUrls.length;
+    return Material(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Icon(Icons.link, size: 18,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: GestureDetector(
+                onTap: count > 1 ? () => _showAllUrls(context) : null,
+                child: Text(
+                  count > 1 ? '$count URLs detected (tap to see all)' : 'URL detected',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    decoration: count > 1 ? TextDecoration.underline : null,
+                  ),
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: lastUrl));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('URL copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('Copy'),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final uri = Uri.tryParse(lastUrl);
+                if (uri != null) {
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.open_in_browser, size: 16),
+              label: const Text('Open'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAllUrls(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Detected URLs',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            ...List.generate(_detectedUrls.length, (i) {
+              final url = _detectedUrls[_detectedUrls.length - 1 - i];
+              return ListTile(
+                leading: const Icon(Icons.link, size: 20),
+                title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 18),
+                      tooltip: 'Copy',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: url));
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('URL copied'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.open_in_browser, size: 18),
+                      tooltip: 'Open',
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        final uri = Uri.tryParse(url);
+                        if (uri != null) {
+                          launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -4,8 +4,8 @@ import 'providers/setup_provider.dart';
 import 'providers/gateway_provider.dart';
 import 'screens/splash_screen.dart';
 
-class OpenClawdApp extends StatelessWidget {
-  const OpenClawdApp({super.key});
+class OpenClawApp extends StatelessWidget {
+  const OpenClawApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class OpenClawdApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => GatewayProvider()),
       ],
       child: MaterialApp(
-        title: 'OpenClawd',
+        title: 'OpenClaw',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorSchemeSeed: const Color(0xFF6750A4),

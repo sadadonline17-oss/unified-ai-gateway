@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
-        android:label="OpenClawd"
+        android:label="OpenClaw"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:extractNativeLibs="true">
@@ -38,6 +38,11 @@
 
         <service
             android:name=".TerminalSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <service
+            android:name=".SetupService"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 

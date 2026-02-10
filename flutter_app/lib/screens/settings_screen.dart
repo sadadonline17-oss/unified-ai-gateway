@@ -136,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(),
                 _sectionHeader(theme, 'About'),
                 const ListTile(
-                  title: Text('OpenClawd'),
+                  title: Text('OpenClaw'),
                   subtitle: Text(
                     'AI Gateway for Android\nVersion ${AppConstants.version}',
                   ),

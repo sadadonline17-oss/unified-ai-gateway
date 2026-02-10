@@ -94,6 +94,22 @@ class NativeBridge {
     return await _channel.invokeMethod('isBatteryOptimized');
   }
 
+  static Future<bool> startSetupService() async {
+    return await _channel.invokeMethod('startSetupService');
+  }
+
+  static Future<bool> updateSetupNotification(String text, {int progress = -1}) async {
+    return await _channel.invokeMethod('updateSetupNotification', {'text': text, 'progress': progress});
+  }
+
+  static Future<bool> stopSetupService() async {
+    return await _channel.invokeMethod('stopSetupService');
+  }
+
+  static Future<bool> showUrlNotification(String url, {String title = 'URL Detected'}) async {
+    return await _channel.invokeMethod('showUrlNotification', {'url': url, 'title': title});
+  }
+
   static Stream<String> get gatewayLogStream {
     return _eventChannel.receiveBroadcastStream().map((event) => event.toString());
   }

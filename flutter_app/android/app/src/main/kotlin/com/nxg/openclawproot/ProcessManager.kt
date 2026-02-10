@@ -1,4 +1,4 @@
-package com.openclawd.app
+package com.nxg.openclawproot
 
 import java.io.BufferedReader
 import java.io.InputStreamReader

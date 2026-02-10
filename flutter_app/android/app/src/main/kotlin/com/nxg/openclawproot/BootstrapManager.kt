@@ -1,4 +1,4 @@
-package com.openclawd.app
+package com.nxg.openclawproot
 
 import android.content.Context
 import android.system.Os
@@ -797,7 +797,7 @@ class BootstrapManager(
         //    process.cwd() is called by Node's CJS module resolver and npm.
         //    This MUST be loaded before any other module.
         val cwdFixContent = """
-// OpenClawd CWD Fix - Auto-generated
+// OpenClaw CWD Fix - Auto-generated
 // proot on Android 10+ returns ENOSYS for getcwd() syscall.
 // Patch process.cwd to return /root on failure.
 const _origCwd = process.cwd;
@@ -812,7 +812,7 @@ process.cwd = function() {
         //    Used during bootstrap (where NODE_OPTIONS must be unset).
         //    Usage: node /root/.openclawd/node-wrapper.js <script> [args...]
         val wrapperContent = """
-// OpenClawd Node Wrapper - Auto-generated
+// OpenClaw Node Wrapper - Auto-generated
 // Patches broken proot syscalls, then loads the target script.
 // Used for bootstrap-time npm operations.
 
@@ -836,7 +836,7 @@ if (script) {
         //    Patches: process.cwd, fs.mkdir, child_process.spawn, os.*, fs.rename,
         //    fs.watch, fs.chmod/chown.
         val prootCompatContent = """
-// OpenClawd Proot Compatibility Layer - Auto-generated
+// OpenClaw Proot Compatibility Layer - Auto-generated
 // Patches all known broken syscalls in proot on Android 10+.
 // This file is require()'d by both node-wrapper.js and bionic-bypass.js.
 
@@ -1173,7 +1173,7 @@ _cp.execFileSync = function(file, args, options) {
         // 4. Bionic bypass — comprehensive runtime patcher for openclaw.
         //    Loaded via NODE_OPTIONS="--require /root/.openclawd/bionic-bypass.js"
         val bypassContent = """
-// OpenClawd Bionic Bypass - Auto-generated
+// OpenClaw Bionic Bypass - Auto-generated
 // Comprehensive runtime compatibility layer for proot on Android 10+.
 // Loaded via NODE_OPTIONS before any application code runs.
 
@@ -1202,7 +1202,7 @@ require('/root/.openclawd/proot-compat.js');
 
         val existing = if (bashrc.exists()) bashrc.readText() else ""
         if (!existing.contains("bionic-bypass")) {
-            bashrc.appendText("\n# OpenClawd Bionic Bypass\n$exportLine\n")
+            bashrc.appendText("\n# OpenClaw Bionic Bypass\n$exportLine\n")
         }
     }
 

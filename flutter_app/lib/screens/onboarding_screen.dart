@@ -32,8 +32,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _loading = true;
   bool _finished = false;
   String? _error;
-  final _tokenUrlRegex = RegExp(r'https?://(?:localhost|127\.0\.0\.1):18789[^\s]*');
-  static final _ansiEscape = RegExp(r'\x1b\[[0-9;]*[a-zA-Z]');
+  final List<String> _detectedUrls = [];
+  static final _anyUrlRegex = RegExp(r'https?://[^\s<>\[\]"' "'" r'\)]+');
+  static final _tokenUrlRegex = RegExp(r'https?://(?:localhost|127\.0\.0\.1):18789[^\s]*');
+  static final _ansiEscape = AppConstants.ansiEscape;
   static final _completionPattern = RegExp(
     r'onboard(ing)?\s+(is\s+)?complete|successfully\s+onboarded|setup\s+complete',
     caseSensitive: false,
@@ -97,14 +99,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         if (_outputBuffer.length > 4096) {
           _outputBuffer = _outputBuffer.substring(_outputBuffer.length - 2048);
         }
-        // Strip ANSI escape codes before matching so URLs aren't truncated
-        final clean = _outputBuffer.replaceAll(_ansiEscape, '');
-        final match = _tokenUrlRegex.firstMatch(clean);
-        if (match != null) {
-          _saveTokenUrl(match.group(0)!);
+        // Strip ANSI escape codes for text analysis
+        final cleanText = _outputBuffer.replaceAll(_ansiEscape, '');
+        // For URL matching, also strip ALL whitespace because terminal
+        // line wrapping pads with spaces, splitting the URL across lines
+        final cleanForUrl = cleanText.replaceAll(RegExp(r'\s+'), '');
+        // Detect all URLs
+        bool urlsChanged = false;
+        for (final m in _anyUrlRegex.allMatches(cleanForUrl)) {
+          final url = m.group(0)!;
+          if (!_detectedUrls.contains(url)) {
+            _detectedUrls.add(url);
+            urlsChanged = true;
+            // Show Android notification for each new URL
+            NativeBridge.showUrlNotification(url, title: 'OpenClaw URL');
+          }
+        }
+        // Save token URL to preferences if found
+        final tokenMatch = _tokenUrlRegex.firstMatch(cleanForUrl);
+        if (tokenMatch != null) {
+          _saveTokenUrl(tokenMatch.group(0)!);
+        }
+        if (urlsChanged && mounted) {
+          setState(() {});
         }
         // Detect onboarding completion from output text
-        if (!_finished && _completionPattern.hasMatch(clean)) {
+        if (!_finished && _completionPattern.hasMatch(cleanText)) {
           if (mounted) {
             setState(() => _finished = true);
           }
@@ -139,6 +159,117 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = PreferencesService();
     await prefs.init();
     prefs.dashboardUrl = url;
+  }
+
+  Widget _buildUrlBanner(BuildContext context) {
+    final lastUrl = _detectedUrls.last;
+    final count = _detectedUrls.length;
+    return Material(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            Icon(Icons.link, size: 18,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
+            const SizedBox(width: 8),
+            Expanded(
+              child: GestureDetector(
+                onTap: count > 1 ? () => _showAllUrls(context) : null,
+                child: Text(
+                  count > 1 ? '$count URLs detected (tap to see all)' : 'URL detected',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    decoration: count > 1 ? TextDecoration.underline : null,
+                  ),
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: lastUrl));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('URL copied to clipboard'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('Copy'),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                final uri = Uri.tryParse(lastUrl);
+                if (uri != null) {
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.open_in_browser, size: 16),
+              label: const Text('Open'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAllUrls(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Detected URLs',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            ...List.generate(_detectedUrls.length, (i) {
+              final url = _detectedUrls[_detectedUrls.length - 1 - i];
+              return ListTile(
+                leading: const Icon(Icons.link, size: 20),
+                title: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 18),
+                      tooltip: 'Copy',
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: url));
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('URL copied'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.open_in_browser, size: 18),
+                      tooltip: 'Open',
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        final uri = Uri.tryParse(url);
+                        if (uri != null) {
+                          launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -184,20 +315,45 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _handleTap(TapUpDetails details, CellOffset offset) {
-    final line = _terminal.buffer.lines.length > offset.y
-        ? _getLineText(offset.y)
-        : '';
-    if (line.isEmpty) return;
+    // Join the tapped line with a few lines above and below to handle
+    // URLs that wrap across terminal lines.
+    final totalLines = _terminal.buffer.lines.length;
+    final startRow = (offset.y - 2).clamp(0, totalLines - 1);
+    final endRow = (offset.y + 2).clamp(0, totalLines - 1);
+
+    final sb = StringBuffer();
+    int tapOffset = 0;
+    for (int row = startRow; row <= endRow; row++) {
+      final lineText = _getLineText(row);
+      if (row == offset.y) {
+        tapOffset = sb.length + offset.x;
+      }
+      sb.write(lineText.trimRight());
+    }
+    final combined = sb.toString();
+    if (combined.isEmpty) return;
 
     final urlPattern = RegExp(
       r'https?://[^\s<>\[\]"' "'" r'\)]+',
       caseSensitive: false,
     );
-    for (final match in urlPattern.allMatches(line)) {
-      final url = match.group(0)!;
-      if (offset.x >= match.start && offset.x <= match.end) {
-        _openUrl(url);
+    for (final match in urlPattern.allMatches(combined)) {
+      if (tapOffset >= match.start && tapOffset <= match.end) {
+        _openUrl(match.group(0)!);
         return;
+      }
+    }
+    // Fallback: if tap didn't land inside a URL but there's one on
+    // the tapped line, offer the first URL found in the combined text
+    // that overlaps the tapped line region.
+    final lineStart = combined.indexOf(_getLineText(offset.y).trimRight());
+    if (lineStart >= 0) {
+      final lineEnd = lineStart + _getLineText(offset.y).trimRight().length;
+      for (final match in urlPattern.allMatches(combined)) {
+        if (match.start < lineEnd && match.end > lineStart) {
+          _openUrl(match.group(0)!);
+          return;
+        }
       }
     }
   }
@@ -350,6 +506,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             )
           else ...[
+            if (_detectedUrls.isNotEmpty)
+              _buildUrlBanner(context),
             Expanded(
               child: TerminalView(
                 _terminal,

@@ -1,7 +1,10 @@
 class AppConstants {
-  static const String appName = 'OpenClawd';
-  static const String version = '1.0.0';
-  static const String packageName = 'com.openclawd.app';
+  static const String appName = 'OpenClaw';
+  static const String version = '1.1.0';
+  static const String packageName = 'com.nxg.openclawproot';
+
+  /// Matches ANSI escape sequences (e.g. color codes in terminal output).
+  static final ansiEscape = RegExp(r'\x1b\[[0-9;]*[a-zA-Z]');
 
   static const String authorName = 'Mithun Gowda B';
   static const String authorEmail = 'mithungowda.b7411@gmail.com';
@@ -40,8 +43,8 @@ class AppConstants {
   static const int healthCheckIntervalMs = 5000;
   static const int maxAutoRestarts = 3;
 
-  static const String channelName = 'com.openclawd.app/native';
-  static const String eventChannelName = 'com.openclawd.app/gateway_logs';
+  static const String channelName = 'com.nxg.openclawproot/native';
+  static const String eventChannelName = 'com.nxg.openclawproot/gateway_logs';
 
   static String getRootfsUrl(String arch) {
     switch (arch) {

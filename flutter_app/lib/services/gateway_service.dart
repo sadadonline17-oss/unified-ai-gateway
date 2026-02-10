@@ -10,7 +10,6 @@ class GatewayService {
   StreamSubscription? _logSubscription;
   final _stateController = StreamController<GatewayState>.broadcast();
   GatewayState _state = const GatewayState();
-  static final _ansiEscape = RegExp(r'\x1b\[[0-9;]*[a-zA-Z]');
   static final _tokenUrlRegex = RegExp(r'https?://(?:localhost|127\.0\.0\.1):18789[^\s]*');
 
   Stream<GatewayState> get stateStream => _stateController.stream;
@@ -44,13 +43,15 @@ class GatewayService {
         }
         // Parse log for token URL — strip ANSI escape codes first
         String? dashboardUrl;
-        final cleanLog = log.replaceAll(_ansiEscape, '');
+        final cleanLog = log.replaceAll(AppConstants.ansiEscape, '');
         final urlMatch = _tokenUrlRegex.firstMatch(cleanLog);
         if (urlMatch != null) {
           dashboardUrl = urlMatch.group(0);
           // Persist clean URL for next startup
           final prefs = PreferencesService();
           prefs.init().then((_) => prefs.dashboardUrl = dashboardUrl);
+          // Show Android notification so user can tap to open
+          NativeBridge.showUrlNotification(dashboardUrl!, title: 'OpenClaw Dashboard');
         }
         _updateState(_state.copyWith(logs: logs, dashboardUrl: dashboardUrl));
       });

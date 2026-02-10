@@ -1,4 +1,4 @@
-package com.openclawd.app
+package com.nxg.openclawproot
 
 import android.os.Build
 

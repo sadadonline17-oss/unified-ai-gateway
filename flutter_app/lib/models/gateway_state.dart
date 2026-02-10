@@ -30,7 +30,7 @@ class GatewayState {
     return GatewayState(
       status: status ?? this.status,
       logs: logs ?? this.logs,
-      errorMessage: errorMessage,
+      errorMessage: errorMessage ?? this.errorMessage,
       startedAt: startedAt ?? this.startedAt,
       dashboardUrl: dashboardUrl ?? this.dashboardUrl,
     );
