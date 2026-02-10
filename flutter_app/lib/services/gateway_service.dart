@@ -11,6 +11,16 @@ class GatewayService {
   final _stateController = StreamController<GatewayState>.broadcast();
   GatewayState _state = const GatewayState();
   static final _tokenUrlRegex = RegExp(r'https?://(?:localhost|127\.0\.0\.1):18789[^\s]*');
+  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘◇◆]+');
+
+  /// Strip ANSI, box-drawing chars, and whitespace to reconstruct URLs
+  /// split by terminal line wrapping or TUI borders.
+  static String _cleanForUrl(String text) {
+    return text
+        .replaceAll(AppConstants.ansiEscape, '')
+        .replaceAll(_boxDrawing, '')
+        .replaceAll(RegExp(r'\s+'), '');
+  }
 
   Stream<GatewayState> get stateStream => _stateController.stream;
   GatewayState get state => _state;
@@ -42,7 +52,7 @@ class GatewayService {
           logs.removeRange(0, logs.length - 500);
         }
         String? dashboardUrl;
-        final cleanLog = log.replaceAll(AppConstants.ansiEscape, '');
+        final cleanLog = _cleanForUrl(log);
         final urlMatch = _tokenUrlRegex.firstMatch(cleanLog);
         if (urlMatch != null) {
           dashboardUrl = urlMatch.group(0);
@@ -78,17 +88,15 @@ class GatewayService {
         if (logs.length > 500) {
           logs.removeRange(0, logs.length - 500);
         }
-        // Parse log for token URL — strip ANSI escape codes first
+        // Parse log for token URL — strip ANSI, box-drawing, whitespace
         String? dashboardUrl;
-        final cleanLog = log.replaceAll(AppConstants.ansiEscape, '');
+        final cleanLog = _cleanForUrl(log);
         final urlMatch = _tokenUrlRegex.firstMatch(cleanLog);
         if (urlMatch != null) {
           dashboardUrl = urlMatch.group(0);
           // Persist clean URL for next startup
           final prefs = PreferencesService();
           prefs.init().then((_) => prefs.dashboardUrl = dashboardUrl);
-          // Show Android notification so user can tap to open
-          NativeBridge.showUrlNotification(dashboardUrl!, title: 'OpenClaw Dashboard');
         }
         _updateState(_state.copyWith(logs: logs, dashboardUrl: dashboardUrl));
       });

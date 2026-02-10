@@ -22,7 +22,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   String? _error;
   static final _anyUrlRegex = RegExp(r'https?://[^\s<>\[\]"' "'" r'\)]+');
   /// Box-drawing and other TUI characters that break URLs when copied
-  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘]+');
+  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘◇◆]+');
 
   static const _fontFallback = [
     'Noto Color Emoji',

@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static final _tokenUrlRegex = RegExp(r'https?://(?:localhost|127\.0\.0\.1):18789[^\s]*');
   static final _ansiEscape = AppConstants.ansiEscape;
   /// Box-drawing and other TUI characters that break URLs when copied
-  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘]+');
+  static final _boxDrawing = RegExp(r'[│┤├┬┴┼╮╯╰╭─╌╴╶┌┐└┘◇◆]+');
   static final _completionPattern = RegExp(
     r'onboard(ing)?\s+(is\s+)?complete|successfully\s+onboarded|setup\s+complete',
     caseSensitive: false,
