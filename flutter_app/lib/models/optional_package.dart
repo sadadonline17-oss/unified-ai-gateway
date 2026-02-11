@@ -35,7 +35,7 @@ class OptionalPackage {
     id: 'go',
     name: 'Go (Golang)',
     description: 'Go programming language compiler and tools',
-    icon: Icons.code,
+    icon: Icons.integration_instructions,
     color: Colors.cyan,
     installCommand:
         'set -e; '
@@ -57,7 +57,7 @@ class OptionalPackage {
     id: 'brew',
     name: 'Homebrew',
     description: 'The missing package manager for Linux',
-    icon: Icons.local_drink,
+    icon: Icons.science,
     color: Colors.amber,
     installCommand:
         'set -e; '

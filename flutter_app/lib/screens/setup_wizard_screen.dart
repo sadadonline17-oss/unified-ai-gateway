@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../models/setup_state.dart';
+import '../models/optional_package.dart';
 import '../providers/setup_provider.dart';
+import '../services/package_service.dart';
 import '../widgets/progress_step.dart';
 import 'onboarding_screen.dart';
-import 'packages_screen.dart';
+import 'package_install_screen.dart';
 
 class SetupWizardScreen extends StatefulWidget {
   const SetupWizardScreen({super.key});
@@ -16,6 +18,21 @@ class SetupWizardScreen extends StatefulWidget {
 
 class _SetupWizardScreenState extends State<SetupWizardScreen> {
   bool _started = false;
+  Map<String, bool> _pkgStatuses = {};
+
+  Future<void> _refreshPkgStatuses() async {
+    final statuses = await PackageService.checkAllStatuses();
+    if (mounted) setState(() => _pkgStatuses = statuses);
+  }
+
+  Future<void> _installPackage(OptionalPackage package) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PackageInstallScreen(package: package),
+      ),
+    );
+    if (result == true) _refreshPkgStatuses();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +43,11 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         child: Consumer<SetupProvider>(
           builder: (context, provider, _) {
             final state = provider.state;
+
+            // Load package statuses once setup completes
+            if (state.isComplete && _pkgStatuses.isEmpty) {
+              _refreshPkgStatuses();
+            }
 
             return Padding(
               padding: const EdgeInsets.all(24),
@@ -56,7 +78,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                   ),
                   const SizedBox(height: 32),
                   Expanded(
-                    child: _buildSteps(state),
+                    child: _buildSteps(state, theme),
                   ),
                   if (state.hasError) ...[
                     ConstrainedBox(
@@ -86,20 +108,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  if (state.isComplete) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const PackagesScreen(),
-                          ),
-                        ),
-                        icon: const Icon(Icons.extension),
-                        label: const Text('Install Optional Packages'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                  if (state.isComplete)
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
@@ -107,8 +116,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                         icon: const Icon(Icons.arrow_forward),
                         label: const Text('Configure API Keys'),
                       ),
-                    ),
-                  ]
+                    )
                   else if (!_started || state.hasError)
                     SizedBox(
                       width: double.infinity,
@@ -152,7 +160,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
     );
   }
 
-  Widget _buildSteps(SetupState state) {
+  Widget _buildSteps(SetupState state, ThemeData theme) {
     final steps = [
       (1, 'Download Ubuntu rootfs', SetupStep.downloadingRootfs),
       (2, 'Extract rootfs', SetupStep.extractingRootfs),
@@ -172,13 +180,75 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
             hasError: state.hasError && state.step == step,
             progress: state.step == step ? state.progress : null,
           ),
-        if (state.isComplete)
+        if (state.isComplete) ...[
           const ProgressStep(
             stepNumber: 6,
             label: 'Setup complete!',
             isComplete: true,
           ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              'Optional Packages',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final pkg in OptionalPackage.all)
+            _buildPackageTile(theme, pkg),
+        ],
       ],
+    );
+  }
+
+  Widget _buildPackageTile(ThemeData theme, OptionalPackage package) {
+    final installed = _pkgStatuses[package.id] ?? false;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: ListTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: package.color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(package.icon, color: package.color, size: 22),
+        ),
+        title: Row(
+          children: [
+            Text(package.name,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            if (installed) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text('Installed',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text('${package.description} (${package.estimatedSize})'),
+        trailing: installed
+            ? const Icon(Icons.check_circle, color: Colors.green)
+            : OutlinedButton(
+                onPressed: () => _installPackage(package),
+                child: const Text('Install'),
+              ),
+      ),
     );
   }
 

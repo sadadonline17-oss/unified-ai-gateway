@@ -137,14 +137,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(_goInstalled
                       ? 'Installed'
                       : 'Not installed'),
-                  leading: const Icon(Icons.code),
+                  leading: const Icon(Icons.integration_instructions),
                 ),
                 ListTile(
                   title: const Text('Homebrew'),
                   subtitle: Text(_brewInstalled
                       ? 'Installed'
                       : 'Not installed'),
-                  leading: const Icon(Icons.local_drink),
+                  leading: const Icon(Icons.science),
                 ),
                 const Divider(),
                 _sectionHeader(theme, 'Maintenance'),
