@@ -55,10 +55,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 32),
-                  Icon(
-                    Icons.cloud_outlined,
-                    size: 48,
-                    color: theme.colorScheme.primary,
+                  Image.asset(
+                    'assets/ic_launcher.png',
+                    width: 64,
+                    height: 64,
                   ),
                   const SizedBox(height: 16),
                   Text(

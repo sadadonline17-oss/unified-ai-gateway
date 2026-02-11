@@ -30,3 +30,4 @@ flutter:
   assets:
     - assets/bionic_bypass.js
     - assets/resolv.conf
+    - assets/ic_launcher.png
