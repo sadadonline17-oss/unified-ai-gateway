@@ -139,7 +139,7 @@ class NodeService {
       'minProtocol': 3,
       'maxProtocol': 3,
       'client': {
-        'id': 'android-node',
+        'id': 'node-host',
         'version': AppConstants.version,
         'platform': 'android',
         'mode': 'node',
