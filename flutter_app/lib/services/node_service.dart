@@ -198,14 +198,17 @@ class NodeService {
       'maxProtocol': 3,
       'client': {
         'id': clientId,
+        'displayName': 'OpenClaw Termux',
         'version': AppConstants.version,
         'platform': 'android',
+        'deviceFamily': 'Android',
         'mode': clientMode,
       },
       'role': role,
       'scopes': scopes,
       'caps': caps,
       'commands': commands,
+      'permissions': <String, dynamic>{},
       if (authToken != null) 'auth': {'token': authToken},
       'device': {
         'id': _identity.deviceId,
@@ -216,9 +219,10 @@ class NodeService {
       },
     });
 
-    _log('[NODE] Connect frame caps=$caps');
+    _log('[NODE] Connect frame caps=$caps commands=$commands');
+    _log('[NODE] Connect frame platform=android deviceFamily=Android');
     final response = await _ws.sendRequest(connectFrame);
-    _log('[NODE] Connect response ok=${response.isOk} payload keys=${response.payload?.keys.toList()}');
+    _log('[NODE] Connect response ok=${response.isOk} payload=${response.payload}');
 
     if (response.isOk) {
       // hello-ok
