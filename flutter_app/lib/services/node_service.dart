@@ -174,6 +174,10 @@ class NodeService {
     );
     final signature = await _identity.signPayload(authPayload);
 
+    // Build caps (unique capability names) and commands from registered handlers
+    final commands = _capabilityHandlers.keys.toList();
+    final caps = commands.map((c) => c.split('.').first).toSet().toList();
+
     final connectFrame = NodeFrame.request('connect', {
       'minProtocol': 3,
       'maxProtocol': 3,
@@ -185,6 +189,8 @@ class NodeService {
       },
       'role': role,
       'scopes': scopes,
+      'caps': caps,
+      'commands': commands,
       if (authToken != null) 'auth': {'token': authToken},
       'device': {
         'id': _identity.deviceId,
