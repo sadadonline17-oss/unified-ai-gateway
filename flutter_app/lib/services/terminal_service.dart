@@ -109,7 +109,7 @@ class TerminalService {
       'TMPDIR=/tmp',
       'COLUMNS=$columns',
       'LINES=$rows',
-      'NODE_OPTIONS=--require /root/.openclawd/bionic-bypass.js',
+      'NODE_OPTIONS=--require /root/.openclaw/bionic-bypass.js',
       '/bin/bash',
       '-l',
     ];

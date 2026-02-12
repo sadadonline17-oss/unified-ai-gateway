@@ -1,13 +1,13 @@
 # OpenClaw
 
-[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/mithun50/openclawd-termux/releases/download/v1.5.5/OpenClaw-v1.5.5-universal.apk)
-[![Build Flutter APK & AAB](https://github.com/mithun50/openclawd-termux/actions/workflows/flutter-build.yml/badge.svg)](https://github.com/mithun50/openclawd-termux/actions/workflows/flutter-build.yml)
-[![npm version](https://img.shields.io/npm/v/openclawd-termux?color=blue&label=npm)](https://www.npmjs.com/package/openclawd-termux)
+[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/mithun50/openclaw-termux/releases/download/v1.5.5/OpenClaw-v1.5.5-universal.apk)
+[![Build Flutter APK & AAB](https://github.com/mithun50/openclaw-termux/actions/workflows/flutter-build.yml/badge.svg)](https://github.com/mithun50/openclaw-termux/actions/workflows/flutter-build.yml)
+[![npm version](https://img.shields.io/npm/v/openclaw-termux?color=blue&label=npm)](https://www.npmjs.com/package/openclaw-termux)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-22-green?logo=node.js)](https://nodejs.org/)
 [![Android](https://img.shields.io/badge/Android-10%2B-brightgreen?logo=android)](https://www.android.com/)
 [![Flutter](https://img.shields.io/badge/Flutter-3.24-02569B?logo=flutter)](https://flutter.dev/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/mithun50/openclawd-termux/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/mithun50/openclaw-termux/pulls)
 
 <p align="center">
   <img src="assets/mockup.png" alt="OpenClaw App Mockup" width="700"/>
@@ -42,9 +42,9 @@ OpenClaw brings the [OpenClaw](https://github.com/anthropics/openclaw) AI gatewa
 
 | | **Flutter App** (Standalone) | **Termux CLI** |
 |---|---|---|
-| Install | Build APK or download release | `npm install -g openclawd-termux` |
-| Setup | Tap "Begin Setup" | `openclawdx setup` |
-| Gateway | Tap "Start Gateway" | `openclawdx start` |
+| Install | Build APK or download release | `npm install -g openclaw-termux` |
+| Setup | Tap "Begin Setup" | `openclawx setup` |
+| Gateway | Tap "Start Gateway" | `openclawx start` |
 | Terminal | Built-in terminal emulator | Termux shell |
 | Dashboard | Built-in WebView | Browser at `localhost:18789` |
 
@@ -83,7 +83,7 @@ These are accessible from:
 - **One-Command Setup** — Installs proot-distro, Ubuntu, Node.js 22, and OpenClaw
 - **Bionic Bypass** — Fixes `os.networkInterfaces()` crash on Android's Bionic libc
 - **Smart Loading** — Shows spinner until the gateway is ready
-- **Pass-through Commands** — Run any OpenClaw command via `openclawdx`
+- **Pass-through Commands** — Run any OpenClaw command via `openclawx`
 
 ---
 
@@ -91,7 +91,7 @@ These are accessible from:
 
 ### Flutter App (Recommended)
 
-1. Download the latest APK from [Releases](https://github.com/mithun50/openclawd-termux/releases)
+1. Download the latest APK from [Releases](https://github.com/mithun50/openclaw-termux/releases)
 2. Install the APK on your Android device
 3. Open the app and tap **Begin Setup**
 4. After setup completes, optionally install **Go** or **Homebrew** from the package cards
@@ -101,8 +101,8 @@ These are accessible from:
 Or build from source:
 
 ```bash
-git clone https://github.com/mithun50/openclawd-termux.git
-cd openclawd-termux/flutter_app
+git clone https://github.com/mithun50/openclaw-termux.git
+cd openclaw-termux/flutter_app
 flutter build apk --release
 ```
 
@@ -111,14 +111,14 @@ flutter build apk --release
 #### One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mithun50/openclawd-termux/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mithun50/openclaw-termux/main/install.sh | bash
 ```
 
 #### Or via npm
 
 ```bash
-npm install -g openclawd-termux
-openclawdx setup
+npm install -g openclaw-termux
+openclawx setup
 ```
 
 ---
@@ -138,23 +138,23 @@ openclawdx setup
 
 ```bash
 # First-time setup (installs proot + Ubuntu + Node.js + OpenClaw)
-openclawdx setup
+openclawx setup
 
 # Check installation status
-openclawdx status
+openclawx status
 
 # Start OpenClaw gateway
-openclawdx start
+openclawx start
 
 # Run onboarding to configure API keys
-openclawdx onboarding
+openclawx onboarding
 
 # Enter Ubuntu shell
-openclawdx shell
+openclawx shell
 
 # Any OpenClaw command works directly
-openclawdx doctor
-openclawdx gateway --verbose
+openclawx doctor
+openclawx gateway --verbose
 ```
 
 ---
@@ -231,7 +231,7 @@ flutter_app/lib/
 
 ### Onboarding
 
-When running onboarding (in-app or via `openclawdx onboarding`):
+When running onboarding (in-app or via `openclawx onboarding`):
 
 - **Binding**: Select `Loopback (127.0.0.1)` for non-rooted devices
 - **API Keys**: Add your Gemini/OpenAI/Claude keys
@@ -267,13 +267,13 @@ The Flutter app automatically loads the dashboard with your auth token via the b
 
 ```bash
 # Check status
-openclawdx status
+openclawx status
 
 # Re-run setup if needed
-openclawdx setup
+openclawx setup
 
 # Make sure onboarding is complete
-openclawdx onboarding
+openclawx onboarding
 ```
 
 ### "os.networkInterfaces" error
@@ -281,7 +281,7 @@ openclawdx onboarding
 Bionic Bypass not configured. Run setup again:
 
 ```bash
-openclawdx setup
+openclawx setup
 ```
 
 ### Process killed in background
@@ -321,8 +321,8 @@ npm install -g openclaw
 ### 3. Create Bionic Bypass
 
 ```bash
-mkdir -p ~/.openclawd
-cat > ~/.openclawd/bionic-bypass.js << 'EOF'
+mkdir -p ~/.openclaw
+cat > ~/.openclaw/bionic-bypass.js << 'EOF'
 const os = require('os');
 const originalNetworkInterfaces = os.networkInterfaces;
 os.networkInterfaces = function() {
@@ -349,7 +349,7 @@ EOF
 ### 4. Add to bashrc
 
 ```bash
-echo 'export NODE_OPTIONS="--require ~/.openclawd/bionic-bypass.js"' >> ~/.bashrc
+echo 'export NODE_OPTIONS="--require ~/.openclaw/bionic-bypass.js"' >> ~/.bashrc
 source ~/.bashrc
 ```
 

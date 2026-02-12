@@ -8,7 +8,7 @@ class AppConstants {
 
   static const String authorName = 'Mithun Gowda B';
   static const String authorEmail = 'mithungowda.b7411@gmail.com';
-  static const String githubUrl = 'https://github.com/mithun50/openclawd-termux';
+  static const String githubUrl = 'https://github.com/mithun50/openclaw-termux';
   static const String license = 'MIT';
 
   // NextGenX

@@ -207,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 ListTile(
                   title: const Text('GitHub'),
-                  subtitle: const Text('mithun50/openclawd-termux'),
+                  subtitle: const Text('mithun50/openclaw-termux'),
                   leading: const Icon(Icons.code),
                   trailing: const Icon(Icons.open_in_new, size: 18),
                   onTap: () => launchUrl(
