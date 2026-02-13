@@ -83,6 +83,7 @@ class NodeProvider extends ChangeNotifier {
     final prefs = PreferencesService();
     await prefs.init();
     if (prefs.nodeEnabled) {
+      await _requestNodePermissions();
       await _nodeService.connect();
     }
   }
