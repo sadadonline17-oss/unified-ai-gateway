@@ -99,6 +99,7 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (prefs.nodeEnabled) {
       await _requestNodePermissions();
       await _requestBatteryOptimization();
+      await NativeBridge.startNodeService();
       await _nodeService.connect();
       _startWatchdog();
     }
@@ -113,9 +114,10 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
       // Gateway just started - auto-enable node if previously enabled
       _checkAutoConnect();
     } else if (wasRunning && !isRunning && !_state.isDisabled) {
-      // Gateway stopped - disconnect node
+      // Gateway stopped - disconnect node and stop foreground service
       _stopWatchdog();
       _nodeService.disconnect();
+      NativeBridge.stopNodeService();
     }
   }
 
@@ -180,6 +182,7 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
     prefs.nodeEnabled = true;
     await _requestNodePermissions();
     await _requestBatteryOptimization();
+    await NativeBridge.startNodeService();
     await _nodeService.connect();
     _startWatchdog();
   }
@@ -190,6 +193,7 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
     prefs.nodeEnabled = false;
     _stopWatchdog();
     await _nodeService.disable();
+    await NativeBridge.stopNodeService();
   }
 
   Future<void> connectRemote(String host, int port, {String? token}) async {
@@ -203,6 +207,7 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
     _nodeService.clearCachedToken();
     await _requestNodePermissions();
     await _requestBatteryOptimization();
+    await NativeBridge.startNodeService();
     await _nodeService.connect(host: host, port: port);
     _startWatchdog();
   }
@@ -220,6 +225,7 @@ class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
     _nodeService.dispose();
     _cameraCapability.dispose();
     _flashCapability.dispose();
+    NativeBridge.stopNodeService();
     super.dispose();
   }
 }

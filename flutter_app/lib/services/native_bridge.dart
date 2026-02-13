@@ -86,6 +86,18 @@ class NativeBridge {
     return await _channel.invokeMethod('isTerminalServiceRunning');
   }
 
+  static Future<bool> startNodeService() async {
+    return await _channel.invokeMethod('startNodeService');
+  }
+
+  static Future<bool> stopNodeService() async {
+    return await _channel.invokeMethod('stopNodeService');
+  }
+
+  static Future<bool> isNodeServiceRunning() async {
+    return await _channel.invokeMethod('isNodeServiceRunning');
+  }
+
   static Future<bool> requestBatteryOptimization() async {
     return await _channel.invokeMethod('requestBatteryOptimization');
   }

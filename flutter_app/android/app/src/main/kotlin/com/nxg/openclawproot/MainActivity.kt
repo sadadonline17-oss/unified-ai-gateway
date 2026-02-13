@@ -137,6 +137,25 @@ class MainActivity : FlutterActivity() {
                 "isTerminalServiceRunning" -> {
                     result.success(TerminalSessionService.isRunning)
                 }
+                "startNodeService" -> {
+                    try {
+                        NodeForegroundService.start(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "stopNodeService" -> {
+                    try {
+                        NodeForegroundService.stop(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "isNodeServiceRunning" -> {
+                    result.success(NodeForegroundService.isRunning)
+                }
                 "requestBatteryOptimization" -> {
                     try {
                         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {

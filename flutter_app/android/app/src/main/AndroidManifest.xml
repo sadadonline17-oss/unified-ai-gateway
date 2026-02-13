@@ -57,6 +57,11 @@
             android:foregroundServiceType="specialUse" />
 
         <service
+            android:name=".NodeForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <service
             android:name=".ScreenCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
