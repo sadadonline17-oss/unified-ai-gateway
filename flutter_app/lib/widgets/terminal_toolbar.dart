@@ -68,7 +68,7 @@ class _TerminalToolbarState extends State<TerminalToolbar> {
     final isDark = theme.brightness == Brightness.dark;
     final bgColor = isDark ? AppColors.darkBg : const Color(0xFFE0E0E0);
     final btnColor = isDark ? AppColors.darkSurfaceAlt : const Color(0xFFEEEEEE);
-    final activeColor = AppColors.accent;
+    const activeColor = AppColors.accent;
     final textColor = isDark ? Colors.white70 : Colors.black87;
 
     Widget keyButton(String label, {VoidCallback? onTap, String? sendData, bool active = false, double? width}) {
