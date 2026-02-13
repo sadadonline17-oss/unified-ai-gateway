@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../models/gateway_state.dart';
 import '../models/node_state.dart';
@@ -14,7 +15,7 @@ import '../services/node_service.dart';
 import '../services/preferences_service.dart';
 
 
-class NodeProvider extends ChangeNotifier {
+class NodeProvider extends ChangeNotifier with WidgetsBindingObserver {
   final NodeService _nodeService = NodeService();
   StreamSubscription? _subscription;
   NodeState _state = const NodeState();
@@ -32,12 +33,24 @@ class NodeProvider extends ChangeNotifier {
   NodeState get state => _state;
 
   NodeProvider() {
+    WidgetsBinding.instance.addObserver(this);
     _subscription = _nodeService.stateStream.listen((state) {
       _state = state;
       notifyListeners();
     });
     _registerCapabilities();
     _init();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed &&
+        !_state.isPaired &&
+        !_state.isDisabled &&
+        !_state.isConnecting) {
+      // App came back to foreground — reconnect if the connection dropped
+      _checkAutoConnect();
+    }
   }
 
   void _registerCapabilities() {
@@ -156,6 +169,7 @@ class NodeProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscription?.cancel();
     _nodeService.dispose();
     _cameraCapability.dispose();
