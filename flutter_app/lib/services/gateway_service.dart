@@ -79,9 +79,9 @@ class GatewayService {
     });
   }
 
-  /// Write gateway config that allows all node commands before startup.
-  /// This ensures the gateway's node-command-policy doesn't block commands
-  /// that the Flutter node declares as capabilities.
+  /// Patch /root/.openclaw/openclaw.json to clear denyCommands and set
+  /// allowCommands for all node capabilities. This is the config file the
+  /// gateway actually reads (not a separate gateway.json).
   Future<void> _writeNodeAllowConfig() async {
     const allowCommands = [
       'camera.snap', 'camera.clip', 'camera.list',
@@ -92,22 +92,33 @@ class GatewayService {
       'sensor.read', 'sensor.list',
       'haptic.vibrate',
     ];
-    final config = jsonEncode({
-      'gateway': {
-        'nodes': {
-          'allowCommands': allowCommands,
-        },
-      },
-    });
+    // Use a Node.js one-liner to safely merge into existing openclaw.json
+    // without clobbering other settings (API keys, onboarding config, etc.)
+    final allowJson = jsonEncode(allowCommands);
+    final script = '''
+const fs = require("fs");
+const p = "/root/.openclaw/openclaw.json";
+let c = {};
+try { c = JSON.parse(fs.readFileSync(p, "utf8")); } catch {}
+if (!c.gateway) c.gateway = {};
+if (!c.gateway.nodes) c.gateway.nodes = {};
+c.gateway.nodes.denyCommands = [];
+c.gateway.nodes.allowCommands = $allowJson;
+fs.writeFileSync(p, JSON.stringify(c, null, 2));
+''';
     try {
       await NativeBridge.runInProot(
-        'mkdir -p /root/.openclaw/config && '
-        "cat > /root/.openclaw/config/gateway.json << 'GWEOF'\n$config\nGWEOF",
-        timeout: 10,
+        'node -e ${_shellEscape(script)}',
+        timeout: 15,
       );
     } catch (_) {
       // Non-fatal: gateway may still work with default policy
     }
+  }
+
+  /// Escape a string for use as a single-quoted shell argument.
+  static String _shellEscape(String s) {
+    return "'${s.replaceAll("'", "'\\''")}'";
   }
 
   Future<void> start() async {
