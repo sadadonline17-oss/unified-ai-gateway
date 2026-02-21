@@ -1,37 +1,44 @@
-# Unified AI Gateway for Android
+# CloudAI Gateway for Android
 
-[![Build Unified AI Gateway](https://github.com/sadadonline17-oss/unified-ai-gateway/actions/workflows/build-unified.yml/badge.svg)](https://github.com/sadadonline17-oss/unified-ai-gateway/actions/workflows/build-unified.yml)
+[![Build CloudAI Gateway Android](https://github.com/sadadonline17-oss/unified-ai-gateway/actions/workflows/build-android.yml/badge.svg)](https://github.com/sadadonline17-oss/unified-ai-gateway/actions/workflows/build-android.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Flutter](https://img.shields.io/badge/Flutter-3.24-02569B?logo=flutter)](https://flutter.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-22-green?logo=node.js)](https://nodejs.org/)
-[![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-blue)](https://ollama.ai/)
+[![Ollama](https://img.shields.io/badge/Ollama-Cloud%20LLM-blue)](https://ollama.ai/)
 
-> **Run Ollama + OpenClaw + NullClaw locally on Android** — A unified AI gateway with local LLM inference, code generation, and multiple AI modes in a single app.
+> **Free Cloud LLM Access on Android** — 30+ free cloud AI models (Qwen3.5, DeepSeek-V3, GLM-5) with local terminal, all in one unified Android app.
 
 ---
 
 ## 🚀 Features
 
-### AI Capabilities
-- **🤖 Local LLM Inference** — Run AI models locally using Ollama
-- **💬 Multiple AI Modes** — Chat, Code Generation, Advanced Coding
-- **🔧 OpenClaw Integration** — Full OpenClaw gateway functionality
-- **🔗 NullClaw Binding** — Native Android capabilities for AI
+### AI Capabilities - FREE Cloud Models
+- **🌐 30+ Free Cloud Models** - Access via Ollama Cloud API
+- **💬 Multiple AI Modes** - Chat, Code Generation, Advanced Coding
+- **🤖 Latest Models** - Qwen3.5 (397B), DeepSeek-V3 (671B), GLM-5 (744B)
+- **🔧 No Local Setup** - Cloud inference, no local model downloads
 
-### Supported Models
-| Mode | Default Model | Use Case |
-|------|--------------|----------|
-| Core Chat | llama3 | General conversation and assistance |
-| Code Generate | deepseek-coder | Code generation and debugging |
-| Advanced Code | qwen2.5-coder | Complex code tasks and refactoring |
+### Supported Free Cloud Models
+| Mode | Default Model | Size | Use Case |
+|------|--------------|------|----------|
+| Core Chat | Qwen3.5 | 397B-A17B | Best overall chat, vision support |
+| Code Generate | Qwen3-Coder-Next | — | Agentic coding workflows |
+| Advanced Code | GLM-5 | 744B (40B active) | Agentic coding, reasoning |
+
+### All Available Free Models
+**Chat Models (14):** Qwen3.5, Kimi-K2.5, MiniMax-M2.5, GLM-5, Qwen3-Next, Nemotron-3-Nano, Ministral:14b/8b, RNJ-1, Llama3.2:7b/3b, Gemma2:9b, Mistral:7b, Phi3:14b
+
+**Code Models (15):** Qwen3-Coder-Next, DeepSeek-V3/V3.2/R1, GLM-5/4.7/4.6, Qwen2.5-Coder:32b/7b, CodeLlama:7b, Devstral-Small-2/2, MiniMax-M2/M2.1, Cogito-2.1
+
+**Vision Models (5):** Qwen3-VL:32b/8b/4b, Llama3.2-Vision:11b/90b
 
 ### Android App Features
 - **📱 Native Flutter UI** — Modern Material Design 3 interface
-- **🖥️ Built-in Terminal** — Full terminal emulator with proot support
+- **🖥️ Built-in Terminal** — Full terminal emulator with Node.js runtime
 - **📊 Web Dashboard** — Embedded WebView for gateway management
-- **📦 Model Manager** — Download and manage AI models
-- **⚙️ Settings** — Configure gateway, models, and preferences
+- **⚙️ Settings** — Configure cloud models and preferences
 - **🔔 Foreground Service** — Keep gateway running in background
+- **🎯 All-in-One** — Complete AI gateway in single APK
 
 ---
 
@@ -40,8 +47,9 @@
 | Requirement | Details |
 |-------------|---------|
 | **Android** | 10 or higher (API 29) |
-| **Storage** | ~2GB for Ubuntu + Node.js + Ollama + Models |
-| **RAM** | 4GB+ recommended for larger models |
+| **Storage** | ~500MB for app (no local models needed) |
+| **RAM** | 2GB+ recommended |
+| **Internet** | Required for cloud model access |
 | **Architectures** | arm64-v8a, armeabi-v7a, x86_64 |
 
 ---
@@ -52,8 +60,8 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Flutter App (Dart)                        │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────────┐     │
-│  │ AI Dashboard │ │   Terminal   │ │   Model Manager  │     │
-│  │  Mode Switch │ │   Emulator   │ │   Pull/Delete    │     │
+│  │ AI Dashboard │ │   Terminal   │ │   Model Selector │     │
+│  │  Mode Switch │ │   Emulator   │ │   Cloud Models   │     │
 │  └──────┬───────┘ └──────┬───────┘ └────────┬─────────┘     │
 │         │                │                  │                │
 │  ┌──────┴────────────────┴──────────────────┴─────────────┐ │
@@ -68,14 +76,22 @@
 │  │   Node.js 22 + Unified Gateway                         │  │
 │  │   ┌─────────────────────────────────────────────────┐  │  │
 │  │   │  Unified Gateway (HTTP:18789, WS:18790)         │  │  │
-│  │   │  ┌─────────────┐ ┌──────────────┐               │  │  │
-│  │   │  │   Ollama    │ │  OpenClaw    │               │  │  │
-│  │   │  │  :11434     │ │  Gateway     │               │  │  │
-│  │   │  └─────────────┘ └──────────────┘               │  │  │
+│  │   │  ┌─────────────────────────────────────────┐    │  │  │
+│  │   │  │  OllamaProvider (Cloud Models API)      │    │  │  │
+│  │   │  │  - Qwen3.5, DeepSeek-V3, GLM-5          │    │  │  │
+│  │   │  │  - 30+ Free Cloud Models                │    │  │  │
+│  │   │  └─────────────────────────────────────────┘    │  │  │
 │  │   │  Routes: /ai/chat, /ai/code, /ai/advanced_code  │  │  │
 │  │   └─────────────────────────────────────────────────┘  │  │
-│  │   Models: /root/.ollama/models                        │  │
 │  └────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+                          │
+                    ☁️ Internet
+                          │
+┌─────────────────────────┼────────────────────────────────────┐
+│            Ollama Cloud API (Free Tier)                      │
+│  - Qwen3.5, DeepSeek-V3, GLM-5, and 30+ more models         │
+│  - No authentication required for public models             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
