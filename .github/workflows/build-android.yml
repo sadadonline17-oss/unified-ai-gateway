@@ -76,12 +76,12 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: cloudai-gateway-apk
           path: |
-            flutter_app/build/outputs/apk/release/*.apk
-            flutter_app/build/outputs/apk/debug/*.apk
+            flutter_app/build/app/outputs/flutter-apk/release/*.apk
+            flutter_app/build/app/outputs/flutter-apk/debug/*.apk
           retention-days: 30
 
       - name: Get version from tag
@@ -117,8 +117,8 @@ jobs:
             ### What's Changed
             See [commit history](https://github.com/${{ github.repository }}/commits/${{ steps.get_version.outputs.VERSION }}) for details.
           files: |
-            flutter_app/build/outputs/apk/release/*.apk
-            flutter_app/build/outputs/apk/debug/*.apk
+            flutter_app/build/app/outputs/flutter-apk/release/*.apk
+            flutter_app/build/app/outputs/flutter-apk/debug/*.apk
           draft: false
           prerelease: false
         env:
