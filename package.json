@@ -1,37 +1,39 @@
 {
-  "name": "openclaw-termux",
-  "version": "1.6.1",
-  "description": "OpenClaw AI Gateway for Android Termux with Bionic Bypass",
+  "name": "unified-ai-gateway",
+  "version": "2.0.0",
+  "description": "Unified AI Gateway for Android - Ollama + OpenClaw + NullClaw integration",
   "main": "lib/index.js",
   "type": "module",
   "bin": {
-    "openclawx": "bin/openclawx",
-    "openclawx-setup": "bin/openclawx"
+    "unified-ai": "bin/unified-ai"
   },
   "scripts": {
     "test": "node lib/test.js",
+    "start": "node lib/index.js",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "postinstall": "node lib/postinstall.js"
+    "lint:fix": "eslint . --fix"
   },
   "keywords": [
+    "ollama",
     "openclaw",
-    "termux",
+    "nullclaw",
     "android",
     "ai",
     "gateway",
-    "gemini",
-    "claude"
+    "llm",
+    "local-ai",
+    "code-generation",
+    "chat"
   ],
-  "author": "Mithun Gowda B <mithungowda.b7411@gmail.com>",
+  "author": "Unified AI Gateway Contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mithun50/openclaw-termux.git"
+    "url": "git+https://github.com/sadadonline17-oss/unified-ai-gateway.git"
   },
-  "homepage": "https://github.com/mithun50/openclaw-termux#readme",
+  "homepage": "https://github.com/sadadonline17-oss/unified-ai-gateway#readme",
   "bugs": {
-    "url": "https://github.com/mithun50/openclaw-termux/issues"
+    "url": "https://github.com/sadadonline17-oss/unified-ai-gateway/issues"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -43,7 +45,8 @@
   "dependencies": {
     "chalk": "^5.3.0",
     "inquirer": "^9.2.12",
-    "ora": "^7.0.1"
+    "ora": "^7.0.1",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
