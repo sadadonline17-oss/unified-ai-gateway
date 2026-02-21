@@ -48,14 +48,14 @@ jobs:
             echo "ERROR: Gateway assets not found!"
             exit 1
           fi
-          
+
           required_files=(
-            "flutter_app/assets/gateway/lib/index.js"
-            "flutter_app/assets/gateway/lib/gateway/unified-gateway.js"
-            "flutter_app/assets/gateway/lib/ollama/index.js"
+            "flutter_app/assets/gateway/index.js"
+            "flutter_app/assets/gateway/gateway/unified-gateway.js"
+            "flutter_app/assets/gateway/ollama/index.js"
             "flutter_app/assets/gateway/package.json"
           )
-          
+
           for file in "${required_files[@]}"; do
             if [ ! -f "$file" ]; then
               echo "ERROR: Missing $file"
@@ -63,7 +63,7 @@ jobs:
             fi
             echo "✓ Found $file"
           done
-          
+
           echo "All gateway assets validated!"
 
   build-apk:
