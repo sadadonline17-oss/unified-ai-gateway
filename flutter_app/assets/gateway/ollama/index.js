@@ -71,15 +71,6 @@ const CLOUD_MODELS = {
   ],
 };
 
-// Free Cloud API Endpoints
-const CLOUD_APIS = {
-  ollama_cloud: 'https://ollama.ai',  // FREE tier - no auth required for public models
-  huggingface: 'https://api-inference.huggingface.co',  // FREE: 30k tokens/day
-  groq: 'https://api.groq.com',  // FREE: 30 req/min (Llama, Gemma, Mistral)
-  together: 'https://api.together.xyz',  // FREE: $1 credit (200+ models)
-  google_ai: 'https://generativelanguage.googleapis.com',  // FREE: 60 req/min (Gemma)
-};
-
 export class OllamaProvider extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -176,7 +167,9 @@ export class OllamaProvider extends EventEmitter {
           const data = JSON.parse(line);
           if (onProgress) onProgress(data);
           this.emit('pull:progress', data);
-        } catch (e) {}
+        } catch (e) {
+          // Ignore parse errors
+        }
       });
       
       req.on('end', () => {
@@ -221,7 +214,9 @@ export class OllamaProvider extends EventEmitter {
           if (data.done) {
             this.emit('generate:complete', data);
           }
-        } catch (e) {}
+        } catch (e) {
+          // Ignore parse errors
+        }
       }
     }
   }
@@ -296,7 +291,9 @@ export class OllamaProvider extends EventEmitter {
           if (data.done) {
             this.emit('chat:complete', data);
           }
-        } catch (e) {}
+        } catch (e) {
+          // Ignore parse errors
+        }
       }
     }
   }
@@ -452,7 +449,7 @@ export class OllamaProvider extends EventEmitter {
       let url;
       try {
         url = new URL(path);
-      } catch (e) {
+      } catch {
         url = new URL(path, this.host);
       }
 
@@ -476,7 +473,7 @@ export class OllamaProvider extends EventEmitter {
         res.on('end', () => {
           try {
             resolve(JSON.parse(data));
-          } catch (e) {
+          } catch {
             resolve(data);
           }
         });
