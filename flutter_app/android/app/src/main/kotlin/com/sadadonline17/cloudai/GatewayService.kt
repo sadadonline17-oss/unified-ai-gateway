@@ -17,7 +17,7 @@ import java.io.File
 
 class GatewayService : Service() {
     companion object {
-        const val CHANNEL_ID = "unified_gateway"
+        const val CHANNEL_ID = "unified_ai_gateway"
         const val NOTIFICATION_ID = 1
         var isRunning = false
             private set
@@ -241,7 +241,7 @@ class GatewayService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "OpenClaw::GatewayWakeLock"
+            "UnifiedAI::GatewayWakeLock"
         )
         wakeLock?.acquire(24 * 60 * 60 * 1000L) // 24 hours max
     }
@@ -257,10 +257,10 @@ class GatewayService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "OpenClaw Gateway",
+                "Unified AI Gateway",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps the OpenClaw gateway running in the background"
+                description = "Keeps the Unified AI Gateway running in the background"
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)

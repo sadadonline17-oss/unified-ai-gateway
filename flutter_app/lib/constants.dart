@@ -1,7 +1,7 @@
 class AppConstants {
-  static const String appName = 'OpenClaw';
-  static const String version = '1.7.1';
-  static const String packageName = 'com.nxg.openclawproot';
+  static const String appName = 'Unified AI Gateway';
+  static const String version = '3.0.0';
+  static const String packageName = 'com.sadadonline17.unifiedai';
 
   /// Matches ANSI escape sequences (e.g. color codes in terminal output).
   static final ansiEscape = RegExp(r'\x1b\[[0-9;]*[a-zA-Z]');

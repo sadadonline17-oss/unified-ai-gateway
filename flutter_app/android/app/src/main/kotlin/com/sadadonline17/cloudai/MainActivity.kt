@@ -439,7 +439,7 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 URL_CHANNEL_ID,
-                "OpenClaw URLs",
+                "Unified AI URLs",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifications for detected URLs"

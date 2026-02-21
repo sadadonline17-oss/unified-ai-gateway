@@ -145,14 +145,14 @@ class ScreenCaptureService : Service() {
     private fun buildNotification(): Notification {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("OpenClaw Node")
+                .setContentTitle("Unified AI Node")
                 .setContentText("Recording screen...")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
-                .setContentTitle("OpenClaw Node")
+                .setContentTitle("Unified AI Node")
                 .setContentText("Recording screen...")
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .build()

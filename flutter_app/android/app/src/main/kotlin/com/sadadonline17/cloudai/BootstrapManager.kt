@@ -440,7 +440,7 @@ class BootstrapManager(
             "$rootfsDir/root/.config",
             "$rootfsDir/usr/local/lib/node_modules",
             "$rootfsDir/usr/local/bin",
-            // OpenClaw runtime directories (can't mkdir at runtime)
+            // Unified AI runtime directories (can't mkdir at runtime)
             "$rootfsDir/root/.openclaw",
             "$rootfsDir/root/.openclaw/data",
             "$rootfsDir/root/.openclaw/memory",
@@ -801,7 +801,7 @@ class BootstrapManager(
         //    process.cwd() is called by Node's CJS module resolver and npm.
         //    This MUST be loaded before any other module.
         val cwdFixContent = """
-// OpenClaw CWD Fix - Auto-generated
+// Unified AI CWD Fix - Auto-generated
 // proot on Android 10+ returns ENOSYS for getcwd() syscall.
 // Patch process.cwd to return /root on failure.
 const _origCwd = process.cwd;
@@ -816,7 +816,7 @@ process.cwd = function() {
         //    Used during bootstrap (where NODE_OPTIONS must be unset).
         //    Usage: node /root/.openclaw/node-wrapper.js <script> [args...]
         val wrapperContent = """
-// OpenClaw Node Wrapper - Auto-generated
+// Unified AI Node Wrapper - Auto-generated
 // Patches broken proot syscalls, then loads the target script.
 // Used for bootstrap-time npm operations.
 
@@ -840,7 +840,7 @@ if (script) {
         //    Patches: process.cwd, fs.mkdir, child_process.spawn, os.*, fs.rename,
         //    fs.watch, fs.chmod/chown.
         val prootCompatContent = """
-// OpenClaw Proot Compatibility Layer - Auto-generated
+// Unified AI Proot Compatibility Layer - Auto-generated
 // Patches all known broken syscalls in proot on Android 10+.
 // This file is require()'d by both node-wrapper.js and bionic-bypass.js.
 
@@ -1177,7 +1177,7 @@ _cp.execFileSync = function(file, args, options) {
         // 4. Bionic bypass — comprehensive runtime patcher for openclaw.
         //    Loaded via NODE_OPTIONS="--require /root/.openclaw/bionic-bypass.js"
         val bypassContent = """
-// OpenClaw Bionic Bypass - Auto-generated
+// Unified AI Bionic Bypass - Auto-generated
 // Comprehensive runtime compatibility layer for proot on Android 10+.
 // Loaded via NODE_OPTIONS before any application code runs.
 
@@ -1206,7 +1206,7 @@ require('/root/.openclaw/proot-compat.js');
 
         val existing = if (bashrc.exists()) bashrc.readText() else ""
         if (!existing.contains("bionic-bypass")) {
-            bashrc.appendText("\n# OpenClaw Bionic Bypass\n$exportLine\n")
+            bashrc.appendText("\n# Unified AI Bionic Bypass\n$exportLine\n")
         }
     }
 
@@ -1313,7 +1313,7 @@ require('/root/.openclaw/proot-compat.js');
         }
     }
 
-    private fun checkOpenClawInProot(): Boolean {
+    private fun checkUnified AIInProot(): Boolean {
         return try {
             val pm = ProcessManager(filesDir, nativeLibDir)
             val output = pm.runInProotSync("command -v openclaw")

@@ -1,7 +1,7 @@
 name: cloudai_gateway
-description: CloudAI Gateway - Free Cloud LLM Access with Ollama
+description: Unified AI Gateway - Free Cloud LLM Access with Ollama
 publish_to: 'none'
-version: 2.0.0+1
+version: 3.0.0+1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

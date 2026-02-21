@@ -34,7 +34,7 @@ def hasKeystore = keystoreProperties.containsKey('storeFile') &&
     file(keystoreProperties['storeFile']).exists()
 
 android {
-    namespace = "com.sadadonline17.cloudai"
+    namespace = "com.sadadonline17.unifiedai"
     compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
@@ -48,7 +48,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.sadadonline17.cloudai"
+        applicationId = "com.sadadonline17.unifiedai"
         minSdk = 29
         targetSdk = 36
         versionCode = flutterVersionCode.toInteger()

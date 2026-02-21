@@ -66,7 +66,7 @@ class SetupService : Service() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
-            "OpenClaw::SetupWakeLock"
+            "UnifiedAI::SetupWakeLock"
         )
         wakeLock?.acquire(60 * 60 * 1000L) // 1 hour max
     }
@@ -82,10 +82,10 @@ class SetupService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "OpenClaw Setup",
+                "Unified AI Setup",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shows progress during OpenClaw environment setup"
+                description = "Shows progress during Unified AI environment setup"
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -110,7 +110,7 @@ class SetupService : Service() {
             Notification.Builder(this)
         }
 
-        builder.setContentTitle("OpenClaw Setup")
+        builder.setContentTitle("Unified AI Setup")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentIntent(pendingIntent)
