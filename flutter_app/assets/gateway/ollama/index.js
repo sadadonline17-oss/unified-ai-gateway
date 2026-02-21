@@ -214,7 +214,7 @@ export class OllamaProvider extends EventEmitter {
           if (data.done) {
             this.emit('generate:complete', data);
           }
-        } catch (e) {
+        } catch {
           // Ignore parse errors
         }
       }

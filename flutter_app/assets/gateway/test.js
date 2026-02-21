@@ -8,8 +8,6 @@ import https from 'https';
 import OllamaProvider from './ollama/index.js';
 import { UnifiedGateway } from './gateway/unified-gateway.js';
 
-const TEST_TIMEOUT = 30000;
-
 // Mock Ollama responses for testing without actual Ollama
 class MockOllamaProvider extends OllamaProvider {
   constructor() {
@@ -28,21 +26,21 @@ class MockOllamaProvider extends OllamaProvider {
     return this.mockModels;
   }
 
-  async *generate(prompt, options = {}) {
+  async *generate(_prompt, _options = {}) {
     const responses = ['Hello', ' from', ' mock', ' AI!'];
     for (const chunk of responses) {
       yield chunk;
     }
   }
 
-  async *chat(messages, options = {}) {
+  async *chat(_messages, _options = {}) {
     const responses = ['This', ' is', ' a', ' mock', ' response.'];
     for (const chunk of responses) {
       yield chunk;
     }
   }
 
-  async *generateCode(prompt, options = {}) {
+  async *generateCode(_prompt, _options = {}) {
     const responses = ['```javascript\n', 'function test() {\n', '  return true;\n', '}\n', '```'];
     for (const chunk of responses) {
       yield chunk;
