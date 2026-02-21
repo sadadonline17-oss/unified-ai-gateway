@@ -1,4 +1,4 @@
-package com.nxg.openclawproot
+package com.sadadonline17.cloudai
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -24,9 +24,9 @@ class OllamaService : Service() {
         const val CHANNEL_ID = "ollama_service_channel"
         const val NOTIFICATION_ID = 1002
         
-        const val ACTION_START = "com.nxg.openclawproot.OLLAMA_START"
-        const val ACTION_STOP = "com.nxg.openclawproot.OLLAMA_STOP"
-        const val ACTION_STATUS = "com.nxg.openclawproot.OLLAMA_STATUS"
+        const val ACTION_START = "com.sadadonline17.cloudai.OLLAMA_START"
+        const val ACTION_STOP = "com.sadadonline17.cloudai.OLLAMA_STOP"
+        const val ACTION_STATUS = "com.sadadonline17.cloudai.OLLAMA_STATUS"
         
         private var isRunning = false
         private var ollamaProcess: Process? = null

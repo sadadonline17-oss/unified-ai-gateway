@@ -1,7 +1,7 @@
-name: openclaw
-description: OpenClaw AI Gateway for Android - standalone, no Termux required.
+name: cloudai_gateway
+description: CloudAI Gateway - Free Cloud LLM Access with Ollama
 publish_to: 'none'
-version: 1.7.1+8
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

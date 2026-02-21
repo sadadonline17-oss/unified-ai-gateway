@@ -1,4 +1,4 @@
-package com.nxg.openclawproot
+package com.sadadonline17.cloudai
 
 import android.app.Notification
 import android.app.NotificationChannel
