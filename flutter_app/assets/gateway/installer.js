@@ -221,7 +221,9 @@ os.networkInterfaces = function() {
     if (interfaces && Object.keys(interfaces).length > 0) {
       return interfaces;
     }
-  } catch (e) {}
+  } catch {
+    // Bionic blocked the call, use fallback
+  }
   return {
     lo: [{
       address: '127.0.0.1',
