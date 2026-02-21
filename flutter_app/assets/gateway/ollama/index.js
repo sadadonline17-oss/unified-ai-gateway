@@ -167,7 +167,7 @@ export class OllamaProvider extends EventEmitter {
           const data = JSON.parse(line);
           if (onProgress) onProgress(data);
           this.emit('pull:progress', data);
-        } catch (e) {
+        } catch {
           // Ignore parse errors
         }
       });
@@ -291,7 +291,7 @@ export class OllamaProvider extends EventEmitter {
           if (data.done) {
             this.emit('chat:complete', data);
           }
-        } catch (e) {
+        } catch {
           // Ignore parse errors
         }
       }
