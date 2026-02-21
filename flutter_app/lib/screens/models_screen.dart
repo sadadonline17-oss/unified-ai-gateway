@@ -315,7 +315,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
               Navigator.pop(context);
               // TODO: Implement model deletion
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Delete not implemented yet')),
+                const SnackBar(content: Text('Delete not implemented yet')),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
