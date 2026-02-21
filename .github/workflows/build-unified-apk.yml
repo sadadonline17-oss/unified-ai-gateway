@@ -1,0 +1,344 @@
+name: Build Unified AI Gateway APK
+
+on:
+  push:
+    branches: [main, develop]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  NODE_VERSION: '22'
+  APP_NAME: 'unified-ai-gateway'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-code:
+    name: Validate Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run ESLint
+        run: npm run lint || true
+
+      - name: Verify gateway assets
+        run: |
+          echo "Checking gateway assets..."
+          if [ ! -d "flutter_app/assets/gateway" ]; then
+            echo "ERROR: Gateway assets not found!"
+            exit 1
+          fi
+          
+          required_files=(
+            "flutter_app/assets/gateway/lib/index.js"
+            "flutter_app/assets/gateway/lib/gateway/unified-gateway.js"
+            "flutter_app/assets/gateway/lib/ollama/index.js"
+            "flutter_app/assets/gateway/package.json"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: Missing $file"
+              exit 1
+            fi
+            echo "✓ Found $file"
+          done
+          
+          echo "All gateway assets validated!"
+
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    needs: [validate-code]
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v3
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Cache Flutter dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter_app/.dart_tool
+            flutter_app/build
+          key: ${{ runner.os }}-flutter-${{ hashFiles('flutter_app/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('flutter_app/android/**/*.gradle*', 'flutter_app/android/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Install Flutter dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Analyze Dart code
+        working-directory: flutter_app
+        run: flutter analyze --no-fatal-infos || true
+
+      - name: Generate debug keystore
+        run: |
+          mkdir -p flutter_app/android/app
+          keytool -genkeypair -v \
+            -keystore flutter_app/android/app/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build Debug APK
+        working-directory: flutter_app
+        run: flutter build apk --debug
+
+      - name: Build Release APK (Universal)
+        working-directory: flutter_app
+        run: flutter build apk --release
+
+      - name: Build Release APK (Split per ABI)
+        working-directory: flutter_app
+        run: flutter build apk --release --split-per-abi
+
+      - name: Build App Bundle
+        working-directory: flutter_app
+        run: flutter build appbundle --release
+
+      - name: Collect and rename artifacts
+        id: collect
+        run: |
+          VERSION=$(grep '^version:' flutter_app/pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          mkdir -p artifacts
+          
+          # Universal APK
+          cp flutter_app/build/app/outputs/flutter-apk/app-release.apk \
+             "artifacts/${{ env.APP_NAME }}-v${VERSION}-universal.apk"
+          
+          # Split APKs
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            src="flutter_app/build/app/outputs/flutter-apk/app-${abi}-release.apk"
+            if [ -f "$src" ]; then
+              cp "$src" "artifacts/${{ env.APP_NAME }}-v${VERSION}-${abi}.apk"
+            fi
+          done
+          
+          # Debug APK
+          cp flutter_app/build/app/outputs/flutter-apk/app-debug.apk \
+             "artifacts/${{ env.APP_NAME }}-v${VERSION}-debug.apk"
+          
+          # App Bundle
+          if [ -f "flutter_app/build/app/outputs/bundle/release/app-release.aab" ]; then
+            cp flutter_app/build/app/outputs/bundle/release/app-release.aab \
+               "artifacts/${{ env.APP_NAME }}-v${VERSION}.aab"
+          fi
+          
+          echo "Built artifacts:"
+          ls -lh artifacts/
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-ai-gateway-apks
+          path: artifacts/*.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-ai-gateway-aab
+          path: artifacts/*.aab
+          retention-days: 30
+
+      - name: Create build summary
+        run: |
+          VERSION=${{ steps.collect.outputs.version }}
+          
+          cat > artifacts/BUILD_SUMMARY.md << EOF
+          # Build Summary - Unified AI Gateway v${VERSION}
+          
+          ## Build Information
+          - **Repository**: ${{ github.repository }}
+          - **Commit**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Workflow**: ${{ github.workflow }}
+          
+          ## Artifacts
+          
+          ### APK Files
+          | File | Description | Size |
+          |------|-------------|------|
+          | ${{ env.APP_NAME }}-v${VERSION}-arm64-v8a.apk | Modern 64-bit ARM devices | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}-arm64-v8a.apk 2>/dev/null | cut -f1 || echo "N/A") |
+          | ${{ env.APP_NAME }}-v${VERSION}-armeabi-v7a.apk | Older 32-bit ARM devices | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}-armeabi-v7a.apk 2>/dev/null | cut -f1 || echo "N/A") |
+          | ${{ env.APP_NAME }}-v${VERSION}-x86_64.apk | x86_64 emulators/devices | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}-x86_64.apk 2>/dev/null | cut -f1 || echo "N/A") |
+          | ${{ env.APP_NAME }}-v${VERSION}-universal.apk | All architectures (larger) | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}-universal.apk 2>/dev/null | cut -f1 || echo "N/A") |
+          | ${{ env.APP_NAME }}-v${VERSION}-debug.apk | Debug build for testing | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}-debug.apk 2>/dev/null | cut -f1 || echo "N/A") |
+          
+          ### App Bundle
+          | File | Description | Size |
+          |------|-------------|------|
+          | ${{ env.APP_NAME }}-v${VERSION}.aab | Android App Bundle (Play Store) | $(du -h artifacts/${{ env.APP_NAME }}-v${VERSION}.aab 2>/dev/null | cut -f1 || echo "N/A") |
+          
+          ## Features
+          - 🌐 30+ Free Cloud Models (Qwen3.5, DeepSeek-V3, GLM-5)
+          - 🤖 Unified AI Gateway embedded
+          - 📱 Flutter UI with Material Design 3
+          - 🖥️ Built-in Terminal Emulator
+          - 🔧 Node.js runtime in proot Ubuntu
+          - ⚙️ HTTP API (port 18789) + WebSocket (port 18790)
+          
+          ## Installation
+          1. Download the appropriate APK for your device
+          2. Enable "Install from Unknown Sources" in Android settings
+          3. Install the APK
+          4. Open the app and complete setup
+          
+          ## Requirements
+          - Android 10+ (API 29)
+          - ~500MB free storage
+          - Internet connection for cloud models
+          EOF
+          
+          cat artifacts/BUILD_SUMMARY.md
+
+      - name: Upload build summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-summary
+          path: artifacts/BUILD_SUMMARY.md
+          retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-apk]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: unified-ai-gateway-apks
+          path: artifacts
+
+      - name: Download AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: unified-ai-gateway-aab
+          path: artifacts
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Unified AI Gateway ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Unified AI Gateway ${{ steps.get_version.outputs.VERSION }}
+            
+            ### 🎉 What's New
+            
+            Complete unified AI gateway embedded in a single Android APK!
+            
+            ### ✨ Features
+            
+            - 🌐 **30+ Free Cloud Models** - Qwen3.5 (397B), DeepSeek-V3 (671B), GLM-5 (744B)
+            - 🤖 **Unified Gateway** - HTTP + WebSocket API
+            - 📱 **Flutter UI** - Modern Material Design 3
+            - 🖥️ **Terminal Emulator** - Full Linux environment
+            - 🔧 **Node.js Runtime** - Embedded in proot Ubuntu
+            - ⚙️ **API Endpoints** - HTTP :18789, WS :18790
+            
+            ### 📥 Downloads
+            
+            | Architecture | Device Type | Download |
+            |--------------|-------------|----------|
+            | arm64-v8a | Most modern phones | [Download](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/unified-ai-gateway-${{ steps.get_version.outputs.VERSION }}-arm64-v8a.apk) |
+            | armeabi-v7a | Older 32-bit ARM | [Download](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/unified-ai-gateway-${{ steps.get_version.outputs.VERSION }}-armeabi-v7a.apk) |
+            | x86_64 | Emulators / Tablets | [Download](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/unified-ai-gateway-${{ steps.get_version.outputs.VERSION }}-x86_64.apk) |
+            | Universal | All devices (larger) | [Download](https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/unified-ai-gateway-${{ steps.get_version.outputs.VERSION }}-universal.apk) |
+            
+            ### 🚀 Quick Start
+            
+            1. Download and install the APK
+            2. Open the app and complete setup
+            3. Pull models from the Models screen
+            4. Start using AI!
+            
+            ### 📋 API Endpoints
+            
+            ```
+            HTTP  : http://localhost:18789/status
+            WS    : ws://localhost:18790
+            
+            POST /ai/chat      - Chat completion
+            POST /ai/code      - Code generation
+            POST /ai/advanced_code - Advanced coding
+            GET  /models       - List models
+            ```
+            
+            ### 📄 Documentation
+            
+            - [BUILD_GUIDE.md](https://github.com/${{ github.repository }}/blob/main/BUILD_GUIDE.md) - Build instructions
+            - [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) - Full documentation
+            
+            ### 🐛 Bug Reports
+            
+            Please report issues at: https://github.com/${{ github.repository }}/issues
+          files: |
+            artifacts/*.apk
+            artifacts/*.aab
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

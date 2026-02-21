@@ -1,0 +1,94 @@
+# Unified AI Gateway - Build Container
+# Build Android APK in a reproducible Docker environment
+
+FROM ghcr.io/cirruslabs/flutter:3.24.0
+
+LABEL maintainer="Unified AI Gateway Contributors"
+LABEL description="Build container for Unified AI Gateway Android APK"
+
+# Set environment variables
+ENV ANDROID_HOME=/opt/android-sdk
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    unzip \
+    xz-utils \
+    zip \
+    libglu1-mesa \
+    openjdk-17-jdk \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Setup Java
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+# Install Android SDK
+RUN mkdir -p ${ANDROID_HOME}
+WORKDIR ${ANDROID_HOME}
+
+# Install command line tools
+RUN wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip && \
+    unzip -q cmdline-tools.zip && \
+    mkdir -p cmdline-tools/latest && \
+    mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true && \
+    rm cmdline-tools.zip
+
+# Accept licenses and install required packages
+RUN yes | sdkmanager --licenses
+RUN sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+# Set working directory
+WORKDIR /build
+
+# Copy project files
+COPY flutter_app/pubspec.yaml flutter_app/pubspec.lock ./flutter_app/
+COPY flutter_app/analysis_options.yaml ./flutter_app/
+COPY flutter_app/lib ./flutter_app/lib
+COPY flutter_app/android ./flutter_app/android
+COPY flutter_app/assets ./flutter_app/assets
+COPY flutter_app/test ./flutter_app/test
+
+# Copy Node.js gateway files
+COPY lib ./flutter_app/assets/gateway/lib
+COPY package.json package-lock.json ./flutter_app/assets/gateway/
+COPY bin ./flutter_app/assets/gateway/bin
+
+# Get Flutter dependencies
+WORKDIR /build/flutter_app
+RUN flutter pub get
+
+# Generate debug keystore
+RUN mkdir -p android/app && \
+    keytool -genkeypair -v \
+      -keystore android/app/debug.keystore \
+      -storepass android \
+      -alias androiddebugkey \
+      -keypass android \
+      -keyalg RSA \
+      -keysize 2048 \
+      -validity 10000 \
+      -dname "CN=Android Debug,O=Android,C=US"
+
+# Default command - build debug APK
+CMD ["flutter", "build", "apk", "--debug"]
+
+# Build instructions:
+# 
+# 1. Build the Docker image:
+#    docker build -t unified-ai-gateway-builder .
+#
+# 2. Build debug APK:
+#    docker run --rm -v $(pwd)/flutter_app/build:/build/flutter_app/build unified-ai-gateway-builder
+#
+# 3. Build release APK:
+#    docker run --rm -v $(pwd)/flutter_app/build:/build/flutter_app/build unified-ai-gateway-builder flutter build apk --release
+#
+# 4. Build with split per ABI:
+#    docker run --rm -v $(pwd)/flutter_app/build:/build/flutter_app/build unified-ai-gateway-builder flutter build apk --release --split-per-abi
+#
+# 5. Copy APK from container:
+#    docker run --rm -v $(pwd)/artifacts:/artifacts unified-ai-gateway-builder sh -c "cp build/app/outputs/flutter-apk/*.apk /artifacts/"

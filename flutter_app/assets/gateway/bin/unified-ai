@@ -1,0 +1,188 @@
+#!/usr/bin/env node
+
+/**
+ * Unified AI Gateway CLI
+ * Command-line interface for managing the gateway
+ */
+
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { UnifiedGateway } from '../lib/gateway/unified-gateway.js';
+import OllamaProvider from '../lib/ollama/index.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const args = process.argv.slice(2);
+const command = args[0] || 'help';
+
+const commands = {
+  start: 'Start the Unified AI Gateway',
+  stop: 'Stop the gateway',
+  status: 'Check gateway and Ollama status',
+  models: 'List available models',
+  pull: 'Pull a model from Ollama registry',
+  shell: 'Enter proot Ubuntu shell',
+  help: 'Show this help message',
+};
+
+function showHelp() {
+  console.log(`
+Unified AI Gateway - Ollama + OpenClaw + NullClaw for Android
+
+Usage: unified-ai <command> [options]
+
+Commands:
+${Object.entries(commands).map(([cmd, desc]) => `  ${cmd.padEnd(10)} ${desc}`).join('\n')}
+
+Examples:
+  unified-ai start              Start the gateway
+  unified-ai pull llama3        Pull the llama3 model
+  unified-ai status             Check status
+
+Environment Variables:
+  OLLAMA_HOST     Ollama API endpoint (default: 127.0.0.1:11434)
+  GATEWAY_PORT    HTTP API port (default: 18789)
+  WS_PORT         WebSocket port (default: 18790)
+`);
+}
+
+async function startGateway() {
+  console.log('Starting Unified AI Gateway...');
+  
+  const gateway = new UnifiedGateway({
+    port: parseInt(process.env.GATEWAY_PORT || '18789'),
+    wsPort: parseInt(process.env.WS_PORT || '18790'),
+  });
+
+  gateway.on('started', ({ port, wsPort }) => {
+    console.log(`✓ Gateway started`);
+    console.log(`  HTTP: http://localhost:${port}`);
+    console.log(`  WebSocket: ws://localhost:${wsPort}`);
+    console.log(`\nAPI Endpoints:`);
+    console.log(`  GET  /status          Gateway status`);
+    console.log(`  POST /ai/chat         Chat completion`);
+    console.log(`  POST /ai/code         Code generation`);
+    console.log(`  POST /ai/advanced_code Advanced coding`);
+    console.log(`  GET  /models          List models`);
+    console.log(`  POST /models/pull     Pull model`);
+  });
+
+  gateway.on('error', (error) => {
+    console.error('Gateway error:', error);
+  });
+
+  await gateway.start();
+}
+
+async function checkStatus() {
+  const ollama = new OllamaProvider();
+  
+  console.log('Checking status...\n');
+  
+  try {
+    const status = await ollama.checkStatus();
+    console.log('Ollama Status:');
+    console.log(`  Running: ${status.running ? '✓' : '✗'}`);
+    if (status.models) {
+      console.log(`  Models: ${status.models.length}`);
+    }
+  } catch (error) {
+    console.log('Ollama: Not connected');
+  }
+
+  // Check gateway
+  try {
+    const response = await fetch('http://localhost:18789/status');
+    const data = await response.json();
+    console.log('\nGateway Status:');
+    console.log(`  Status: ${data.status}`);
+    console.log(`  Version: ${data.version}`);
+  } catch {
+    console.log('\nGateway: Not running');
+  }
+}
+
+async function listModels() {
+  const ollama = new OllamaProvider();
+  
+  try {
+    const models = await ollama.listModels();
+    console.log('Available Models:\n');
+    
+    if (models.length === 0) {
+      console.log('  No models installed.');
+      console.log('  Use "unified-ai pull <model>" to install a model.');
+    } else {
+      models.forEach(model => {
+        const size = (model.size / 1e9).toFixed(1);
+        console.log(`  ${model.name.padEnd(20)} ${size}GB`);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to list models:', error.message);
+  }
+}
+
+async function pullModel(modelName) {
+  if (!modelName) {
+    console.error('Error: Model name required');
+    console.log('Usage: unified-ai pull <model-name>');
+    console.log('\nPopular models:');
+    console.log('  llama3          - General purpose chat');
+    console.log('  deepseek-coder  - Code generation');
+    console.log('  qwen2.5-coder   - Advanced coding');
+    console.log('  mistral         - Fast and efficient');
+    process.exit(1);
+  }
+
+  const ollama = new OllamaProvider();
+  
+  console.log(`Pulling model: ${modelName}`);
+  console.log('This may take a while...\n');
+
+  try {
+    await ollama.pullModel(modelName, (progress) => {
+      if (progress.status) {
+        process.stdout.write(`\r${progress.status}...`);
+      }
+    });
+    console.log(`\n✓ Model ${modelName} pulled successfully`);
+  } catch (error) {
+    console.error(`\n✗ Failed to pull model: ${error.message}`);
+  }
+}
+
+// Run command
+(async () => {
+  try {
+    switch (command) {
+      case 'start':
+        await startGateway();
+        break;
+      case 'stop':
+        console.log('Stop command requires the gateway to be running');
+        break;
+      case 'status':
+        await checkStatus();
+        break;
+      case 'models':
+        await listModels();
+        break;
+      case 'pull':
+        await pullModel(args[1]);
+        break;
+      case 'shell':
+        console.log('Shell command requires proot environment');
+        break;
+      case 'help':
+      default:
+        showHelp();
+        break;
+    }
+  } catch (error) {
+    console.error('Error:', error.message);
+    process.exit(1);
+  }
+})();

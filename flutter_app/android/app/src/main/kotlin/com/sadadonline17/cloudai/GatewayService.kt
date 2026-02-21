@@ -13,10 +13,11 @@ import android.os.PowerManager
 import io.flutter.plugin.common.EventChannel
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.File
 
 class GatewayService : Service() {
     companion object {
-        const val CHANNEL_ID = "openclaw_gateway"
+        const val CHANNEL_ID = "unified_gateway"
         const val NOTIFICATION_ID = 1
         var isRunning = false
             private set
@@ -77,12 +78,29 @@ class GatewayService : Service() {
         Thread {
             try {
                 val filesDir = applicationContext.filesDir.absolutePath
-                val nativeLibDir = applicationContext.applicationInfo.nativeLibraryDir
-                val pm = ProcessManager(filesDir, nativeLibDir)
+                val gatewayDir = File(filesDir, "unified-gateway")
 
-                gatewayProcess = pm.startProotProcess("openclaw gateway --verbose")
+                // Copy gateway files from assets if needed
+                if (!File(gatewayDir, "lib/index.js").exists()) {
+                    emitLog("Copying unified-gateway files from assets...")
+                    copyAssetsToDirectory("gateway", gatewayDir)
+                }
+
+                // Install dependencies if needed
+                val nodeModulesDir = File(gatewayDir, "node_modules")
+                if (!nodeModulesDir.exists()) {
+                    emitLog("Installing Node.js dependencies...")
+                    val pm = ProcessManager(filesDir, applicationContext.applicationInfo.nativeLibraryDir)
+                    val installProcess = pm.startProotProcess("cd $gatewayDir && npm install --production")
+                    installProcess.waitFor()
+                }
+
+                // Start the unified gateway
+                val pm = ProcessManager(filesDir, applicationContext.applicationInfo.nativeLibraryDir)
+                gatewayProcess = pm.startProotProcess("cd $gatewayDir && export NODE_OPTIONS='--require /root/.openclaw/bionic-bypass.js' && node lib/index.js")
+
                 updateNotificationRunning()
-                emitLog("Gateway started")
+                emitLog("Unified AI Gateway started on port 18789")
                 startUptimeTicker()
 
                 // Read stdout
@@ -116,7 +134,7 @@ class GatewayService : Service() {
 
                 if (isRunning && restartCount < maxRestarts) {
                     restartCount++
-                    val delayMs = 2000L * (1 shl (restartCount - 1)) // 2s, 4s, 8s
+                    val delayMs = 2000L * (1 shl (restartCount - 1))
                     emitLog("Auto-restarting in ${delayMs / 1000}s (attempt $restartCount/$maxRestarts)...")
                     updateNotification("Restarting in ${delayMs / 1000}s (attempt $restartCount)...")
                     Thread.sleep(delayMs)
@@ -132,6 +150,44 @@ class GatewayService : Service() {
                 updateNotification("Gateway error")
             }
         }.start()
+    }
+
+    private fun copyAssetsToDirectory(assetPath: String, targetDir: File) {
+        try {
+            if (!targetDir.exists()) {
+                targetDir.mkdirs()
+            }
+
+            val assetManager = applicationContext.assets
+            val files = assetManager.list(assetPath) ?: return
+
+            for (file in files) {
+                val subPath = if (assetPath.isEmpty()) file else "$assetPath/$file"
+                val targetFile = File(targetDir, file)
+
+                try {
+                    val subFiles = assetManager.list(subPath)
+                    if (subFiles != null && subFiles.isNotEmpty()) {
+                        copyAssetsToDirectory(subPath, targetFile)
+                    } else {
+                        assetManager.open(subPath).use { input ->
+                            targetFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Skip directories that can't be listed
+                    assetManager.open(subPath).use { input ->
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            emitLog("Error copying assets: ${e.message}")
+        }
     }
 
     private fun stopGateway() {
@@ -225,7 +281,7 @@ class GatewayService : Service() {
             Notification.Builder(this)
         }
 
-        builder.setContentTitle("OpenClaw Gateway")
+        builder.setContentTitle("Unified AI Gateway")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)

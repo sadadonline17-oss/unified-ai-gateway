@@ -10,6 +10,20 @@
 
 ---
 
+## 📢 Latest: Full Repository Merged into Single APK
+
+✅ **All gateway code is now embedded in the Flutter app!**
+
+The entire `unified-ai-gateway` Node.js codebase has been merged into a single APK:
+- Gateway files copied to `flutter_app/assets/gateway/`
+- Auto-installs npm dependencies on first run
+- Runs in proot Ubuntu environment
+- Foreground service with notifications
+
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) for build instructions.
+
+---
+
 ## 🚀 Features
 
 ### AI Capabilities - FREE Cloud Models
