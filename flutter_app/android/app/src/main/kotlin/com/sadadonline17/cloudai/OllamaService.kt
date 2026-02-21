@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.sadadonline17.cloudai.R
 import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.InputStreamReader

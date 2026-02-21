@@ -1313,7 +1313,7 @@ require('/root/.openclaw/proot-compat.js');
         }
     }
 
-    private fun checkUnified AIInProot(): Boolean {
+    private fun checkUnifiedAIInProot(): Boolean {
         return try {
             val pm = ProcessManager(filesDir, nativeLibDir)
             val output = pm.runInProotSync("command -v openclaw")
