@@ -263,13 +263,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download APK artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: unified-ai-gateway-apks
           path: artifacts
 
       - name: Download AAB artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: unified-ai-gateway-aab
           path: artifacts
