@@ -73,7 +73,7 @@ jobs:
         run: flutter build apk --release --target-platform android-arm64
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unified-ai-gateway-release
           path: flutter_app/build/app/outputs/flutter-apk/*.apk

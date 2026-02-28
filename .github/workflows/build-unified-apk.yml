@@ -180,14 +180,14 @@ jobs:
           ls -lh artifacts/
 
       - name: Upload APK artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unified-ai-gateway-apks
           path: artifacts/*.apk
           retention-days: 30
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unified-ai-gateway-aab
           path: artifacts/*.aab
@@ -246,7 +246,7 @@ jobs:
           cat artifacts/BUILD_SUMMARY.md
 
       - name: Upload build summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-summary
           path: artifacts/BUILD_SUMMARY.md
